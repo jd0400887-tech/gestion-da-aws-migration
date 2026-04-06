@@ -17,13 +17,25 @@ export interface Profile {
   role: 'ADMIN' | 'COORDINATOR' | 'INSPECTOR' | 'RECRUITER';
   assigned_zone: 'Centro' | 'Norte' | 'Noroeste' | null;
   permissions?: string[];
+  telegram_id?: string | null; // For automatic identification via bot
+  language_preference?: 'en' | 'es'; // Preferred language for communication
+}
+
+export interface EmployeeAssignment {
+  id: string;
+  employeeId: string;
+  hotelId: string;
+  role: string;
+  startDate: string;
+  endDate?: string | null;
+  status: 'active' | 'inactive' | 'transferred';
 }
 
 export interface Employee {
   id: string; // Internal unique ID
   employeeNumber: string; // User-facing employee number
   name: string;
-  hotelId: string;
+  hotelId: string; // Current hotel assignment
   isActive: boolean;
   role: string;
   employeeType: 'permanente' | 'temporal';
@@ -32,6 +44,7 @@ export interface Employee {
   lastReviewedTimestamp: string | null;
   overtime?: number;
   documentacion_completa: boolean;
+  assignments?: EmployeeAssignment[]; // History of rotations
 }
 
 export interface AttendanceRecord {
@@ -43,6 +56,7 @@ export interface AttendanceRecord {
 
 export interface StaffingRequest {
   id: number;
+  request_number: string; // Follow-up number (SR26-001)
   created_at: string;
   hotel_id: string;
   hotelName?: string; // From the join

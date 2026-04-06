@@ -67,20 +67,33 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       if (isMounted) setLoading(false);
     };
 
-    // Inicialización
+    // MOCK MODE: Desconectado de Supabase para desarrollo
+    const mockSession = { 
+      user: { id: 'mock-id', email: 'admin@oranjeapp.com' },
+      access_token: 'mock-token',
+      expires_at: 9999999999,
+      refresh_token: 'mock-refresh'
+    } as any;
+    
+    const mockProfile = { 
+      id: 'mock-id', 
+      email: 'admin@oranjeapp.com', 
+      role: 'ADMIN', 
+      assigned_zone: null, 
+      permissions: ['ALL'] 
+    } as Profile;
+
+    setSession(mockSession);
+    setProfile(mockProfile);
+    setLoading(false);
+
+    // Desactivamos el escuchador real de Supabase temporalmente
+    /*
     supabase.auth.getSession().then(({ data: { session } }) => {
       updateAuthState(session);
     });
-
-    // Escuchador de cambios
-    const { data: authListener } = supabase.auth.onAuthStateChange((_event, session) => {
-      updateAuthState(session);
-    });
-
-    return () => {
-      isMounted = false;
-      authListener.subscription.unsubscribe();
-    };
+    ...
+    */
   }, []);
 
   const signOut = async () => {

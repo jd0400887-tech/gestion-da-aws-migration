@@ -1,6 +1,9 @@
 import { useState, useEffect } from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
-import { CircularProgress, ThemeProvider, CssBaseline } from '@mui/material';
+import { CircularProgress, ThemeProvider, CssBaseline, Box, Typography } from '@mui/material';
+import { Authenticator, useAuthenticator, View, Image, useTheme } from '@aws-amplify/ui-react';
+import '@aws-amplify/ui-react/styles.css';
+
 import MainLayout from './layouts/MainLayout';
 import DashboardPage from './pages/DashboardPage';
 import EmployeesPage from './pages/EmployeesPage';
@@ -8,11 +11,11 @@ import HotelsPage from './pages/HotelsPage';
 import AttendanceReportPage from './pages/AttendanceReportPage';
 import PayrollReviewPage from './pages/PayrollReviewPage';
 import HotelDetailPage from './pages/HotelDetailPage';
-import InformesPage from './pages/InformesPage'; // Import the new page
+import InformesPage from './pages/InformesPage';
 import StaffingRequestsPage from './pages/StaffingRequestsPage';
 import ApplicationsPage from './pages/ApplicationsPage';
 import ArchivedRequestsPage from './pages/ArchivedRequestsPage';
-import AdoptionTrackerPage from './pages/AdoptionTrackerPage'; // Import the new page
+import AdoptionTrackerPage from './pages/AdoptionTrackerPage';
 import QAPage from './pages/QAPage';
 import CorporateReportPage from './pages/CorporateReportPage';
 import HistoricalReportPage from './pages/HistoricalReportPage';
@@ -20,31 +23,39 @@ import LoginPage from './pages/LoginPage';
 import UsersPage from './pages/UsersPage';
 import { useAuth } from './hooks/useAuth';
 import { lightTheme, darkTheme } from './theme';
+import { PATHS } from './routes/paths';
+import { ProtectedRoute } from './components/common/ProtectedRoute';
 
-function App() {
-  const { session, profile, loading } = useAuth(); // Added profile
+function AppContent() {
+  const { authStatus, user } = useAuthenticator();
+  const { profile, loading } = useAuth();
   const [forceShow, setForceShow] = useState(false);
 
-  // Seleccionar tema basado en el rol
+  // Seleccionar tema basado en el rol (Light para campo, Dark para oficina/admin)
   const theme = (profile?.role === 'RECRUITER' || profile?.role === 'INSPECTOR') ? lightTheme : darkTheme;
 
-  // Seguridad extra: si en 5 segundos no ha cargado, forzamos mostrar la app
   useEffect(() => {
     const timer = setTimeout(() => {
       if (loading) {
-        console.warn('Forzando carga de la aplicación tras timeout');
         setForceShow(true);
       }
     }, 5000);
     return () => clearTimeout(timer);
   }, [loading]);
 
-  if (loading && !forceShow) {
+  if (authStatus === 'configuring') {
     return (
-      <div style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', height: '100vh', backgroundColor: '#121212', color: '#ff5722' }}>
-        <h2 style={{ marginBottom: '1rem' }}>Cargando...</h2>
-        <CircularProgress color="inherit" />
-      </div>
+      <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh', backgroundColor: '#121212' }}>
+        <CircularProgress color="primary" />
+      </Box>
+    );
+  }
+
+  if (authStatus !== 'authenticated') {
+    return (
+      <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh', backgroundColor: '#f5f5f5' }}>
+        <Authenticator hideSignUp={true} />
+      </Box>
     );
   }
 
@@ -52,35 +63,43 @@ function App() {
     <ThemeProvider theme={theme}>
       <CssBaseline />
       <Routes>
-        {!session ? (
-          <>
-            <Route path="/login" element={<LoginPage />} />
-            <Route path="*" element={<Navigate to="/login" />} />
-          </>
-        ) : (
-          <>
-            <Route path="/login" element={<Navigate to="/" />} />
-            <Route path="/" element={<MainLayout />}>
-              <Route index element={<DashboardPage />} />
-              <Route path="usuarios" element={profile?.role === 'ADMIN' ? <UsersPage /> : <Navigate to="/" />} />
-              <Route path="empleados" element={<EmployeesPage />} />
-              <Route path="hoteles" element={<HotelsPage />} />
-              <Route path="hotel/:hotelId" element={<HotelDetailPage />} />
-              <Route path="reporte-asistencia" element={<AttendanceReportPage />} />
-              <Route path="revision-nomina" element={<PayrollReviewPage />} />
-              <Route path="informes" element={<InformesPage />} /> {/* Add the new route */}
-              <Route path="solicitudes" element={<StaffingRequestsPage />} />
-              <Route path="aplicaciones" element={<ApplicationsPage />} />
-              <Route path="calidad" element={<QAPage />} />
-              <Route path="solicitudes-archivadas" element={<ArchivedRequestsPage />} />
-              <Route path="seguimiento-workrecord" element={<AdoptionTrackerPage />} />
-              <Route path="reporte-corporativo" element={<CorporateReportPage />} />
-              <Route path="reporte-historico" element={<HistoricalReportPage />} />
-            </Route>
-          </>
-        )}
+        {/* Rutas Públicas */}
+        <Route path={PATHS.LOGIN} element={<Navigate to={PATHS.DASHBOARD} replace />} />
+
+        {/* Rutas Privadas Protegidas */}
+        <Route path="/" element={<ProtectedRoute><MainLayout /></ProtectedRoute>}>
+          <Route index element={<DashboardPage />} />
+          
+          <Route path={PATHS.USERS} element={
+            <ProtectedRoute allowedRoles={['ADMIN']}><UsersPage /></ProtectedRoute>
+          } />
+
+          <Route path={PATHS.EMPLOYEES} element={<EmployeesPage />} />
+          <Route path={PATHS.HOTELS} element={<HotelsPage />} />
+          <Route path={PATHS.HOTEL_DETAIL} element={<HotelDetailPage />} />
+          <Route path={PATHS.ATTENDANCE} element={<AttendanceReportPage />} />
+          <Route path={PATHS.PAYROLL} element={<PayrollReviewPage />} />
+          <Route path={PATHS.REPORTS} element={<InformesPage />} />
+          <Route path={PATHS.REQUESTS} element={<StaffingRequestsPage />} />
+          <Route path={PATHS.APPLICATIONS} element={<ApplicationsPage />} />
+          <Route path={PATHS.QA} element={<QAPage />} />
+          <Route path={PATHS.ARCHIVED_REQUESTS} element={<ArchivedRequestsPage />} />
+          <Route path={PATHS.ADOPTION_TRACKER} element={<AdoptionTrackerPage />} />
+          <Route path={PATHS.CORPORATE_REPORT} element={<CorporateReportPage />} />
+          <Route path={PATHS.HISTORICAL_REPORT} element={<HistoricalReportPage />} />
+        </Route>
+
+        <Route path="*" element={<Navigate to={PATHS.DASHBOARD} replace />} />
       </Routes>
     </ThemeProvider>
+  );
+}
+
+function App() {
+  return (
+    <Authenticator.Provider>
+      <AppContent />
+    </Authenticator.Provider>
   );
 }
 
