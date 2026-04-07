@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Routes, Route, Navigate } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { CircularProgress, ThemeProvider, CssBaseline, Box, Typography } from '@mui/material';
 import { Authenticator, useAuthenticator } from '@aws-amplify/ui-react';
 import '@aws-amplify/ui-react/styles.css';
@@ -19,10 +19,9 @@ import AdoptionTrackerPage from './pages/AdoptionTrackerPage';
 import QAPage from './pages/QAPage';
 import CorporateReportPage from './pages/CorporateReportPage';
 import HistoricalReportPage from './pages/HistoricalReportPage';
-import LoginPage from './pages/LoginPage';
 import UsersPage from './pages/UsersPage';
 import { useAuth } from './hooks/useAuth';
-import { AuthProvider } from './contexts/AuthContext'; // Importación vital
+import { AuthProvider } from './contexts/AuthContext';
 import { lightTheme, darkTheme } from './theme';
 import { PATHS } from './routes/paths';
 import { ProtectedRoute } from './components/common/ProtectedRoute';
@@ -32,7 +31,6 @@ function AppContent() {
   const { profile, loading } = useAuth();
   const [forceShow, setForceShow] = useState(false);
 
-  // Seleccionar tema basado en el rol (Light para campo, Dark para oficina/admin)
   const theme = (profile?.role === 'RECRUITER' || profile?.role === 'INSPECTOR') ? lightTheme : darkTheme;
 
   useEffect(() => {
@@ -63,29 +61,31 @@ function AppContent() {
   return (
     <ThemeProvider theme={theme}>
       <CssBaseline />
-      <Routes>
-        <Route path={PATHS.LOGIN} element={<Navigate to={PATHS.DASHBOARD} replace />} />
+      <Router> {/* Router añadido aquí */}
+        <Routes>
+          <Route path={PATHS.LOGIN} element={<Navigate to={PATHS.DASHBOARD} replace />} />
 
-        <Route path="/" element={<ProtectedRoute><MainLayout /></ProtectedRoute>}>
-          <Route index element={<DashboardPage />} />
-          <Route path={PATHS.USERS} element={<ProtectedRoute allowedRoles={['ADMIN']}><UsersPage /></ProtectedRoute>} />
-          <Route path={PATHS.EMPLOYEES} element={<EmployeesPage />} />
-          <Route path={PATHS.HOTELS} element={<HotelsPage />} />
-          <Route path={PATHS.HOTEL_DETAIL} element={<HotelDetailPage />} />
-          <Route path={PATHS.ATTENDANCE} element={<AttendanceReportPage />} />
-          <Route path={PATHS.PAYROLL} element={<PayrollReviewPage />} />
-          <Route path={PATHS.REPORTS} element={<InformesPage />} />
-          <Route path={PATHS.REQUESTS} element={<StaffingRequestsPage />} />
-          <Route path={PATHS.APPLICATIONS} element={<ApplicationsPage />} />
-          <Route path={PATHS.QA} element={<QAPage />} />
-          <Route path={PATHS.ARCHIVED_REQUESTS} element={<ArchivedRequestsPage />} />
-          <Route path={PATHS.ADOPTION_TRACKER} element={<AdoptionTrackerPage />} />
-          <Route path={PATHS.CORPORATE_REPORT} element={<CorporateReportPage />} />
-          <Route path={PATHS.HISTORICAL_REPORT} element={<HistoricalReportPage />} />
-        </Route>
+          <Route path="/" element={<ProtectedRoute><MainLayout /></ProtectedRoute>}>
+            <Route index element={<DashboardPage />} />
+            <Route path={PATHS.USERS} element={<ProtectedRoute allowedRoles={['ADMIN']}><UsersPage /></ProtectedRoute>} />
+            <Route path={PATHS.EMPLOYEES} element={<EmployeesPage />} />
+            <Route path={PATHS.HOTELS} element={<HotelsPage />} />
+            <Route path={PATHS.HOTEL_DETAIL} element={<HotelDetailPage />} />
+            <Route path={PATHS.ATTENDANCE} element={<AttendanceReportPage />} />
+            <Route path={PATHS.PAYROLL} element={<PayrollReviewPage />} />
+            <Route path={PATHS.REPORTS} element={<InformesPage />} />
+            <Route path={PATHS.REQUESTS} element={<StaffingRequestsPage />} />
+            <Route path={PATHS.APPLICATIONS} element={<ApplicationsPage />} />
+            <Route path={PATHS.QA} element={<QAPage />} />
+            <Route path={PATHS.ARCHIVED_REQUESTS} element={<ArchivedRequestsPage />} />
+            <Route path={PATHS.ADOPTION_TRACKER} element={<AdoptionTrackerPage />} />
+            <Route path={PATHS.CORPORATE_REPORT} element={<CorporateReportPage />} />
+            <Route path={PATHS.HISTORICAL_REPORT} element={<HistoricalReportPage />} />
+          </Route>
 
-        <Route path="*" element={<Navigate to={PATHS.DASHBOARD} replace />} />
-      </Routes>
+          <Route path="*" element={<Navigate to={PATHS.DASHBOARD} replace />} />
+        </Routes>
+      </Router>
     </ThemeProvider>
   );
 }
@@ -93,7 +93,7 @@ function AppContent() {
 function App() {
   return (
     <Authenticator.Provider>
-      <AuthProvider> {/* Envolvemos todo aquí para solucionar el error de contexto */}
+      <AuthProvider>
         <AppContent />
       </AuthProvider>
     </Authenticator.Provider>
