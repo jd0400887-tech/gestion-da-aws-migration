@@ -9,26 +9,28 @@ import App from './App.tsx';
 import theme from './theme.ts';
 import './index.css';
 
-// Configuración de AWS Amplify Gen 2
-try {
-  // @ts-ignore - Este archivo es generado dinámicamente por AWS Amplify
-  import('../amplify_outputs.json').then((outputs) => {
+// Función para inicializar la App
+async function initApp() {
+  try {
+    // Intentar cargar la configuración real de AWS
+    // @ts-ignore
+    const outputs = await import('../amplify_outputs.json');
     Amplify.configure(outputs.default);
     console.info('🚀 OranjeApp: Conectada a AWS Cloud con éxito.');
-  }).catch(() => {
+  } catch (e) {
     console.warn('⚠️ OranjeApp: Funcionando en MODO DESCONECTADO (Mocks).');
-  });
-} catch (e) {
-  console.warn('⚠️ OranjeApp: Configuración de AWS no detectada.');
+  }
+
+  createRoot(document.getElementById('root')!).render(
+    <StrictMode>
+      <ThemeProvider theme={theme}>
+        <CssBaseline />
+        <Authenticator.Provider>
+          <App />
+        </Authenticator.Provider>
+      </ThemeProvider>
+    </StrictMode>
+  );
 }
 
-createRoot(document.getElementById('root')!).render(
-  <StrictMode>
-    <ThemeProvider theme={theme}>
-      <CssBaseline />
-      <Authenticator.Provider>
-        <App />
-      </Authenticator.Provider>
-    </ThemeProvider>
-  </StrictMode>
-);
+initApp();
