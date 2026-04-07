@@ -1,126 +1,94 @@
-import type { Employee, EmployeeAssignment } from '../types';
+import { generateClient } from 'aws-amplify/api';
+import type { Schema } from '../../amplify/data/resource';
+import type { Employee } from '../types';
 
 /**
- * MOCK DATABASE - Empleados
+ * SERVICIO PROFESIONAL DE EMPLEADOS (AWS AMPLIFY)
+ * Conexión directa con la base de datos en la nube.
  */
-let mockEmployees: Employee[] = [
-  {
-    id: 'emp-1',
-    employeeNumber: '1001',
-    name: 'Juan Perez',
-    hotelId: 'hotel-1',
-    isActive: true,
-    role: 'Camarista',
-    employeeType: 'permanente',
-    isBlacklisted: false,
-    payrollType: 'timesheet',
-    lastReviewedTimestamp: null,
-    documentacion_completa: true,
-    assignments: [
-      { id: 'asgn-1', employeeId: 'emp-1', hotelId: 'hotel-1', role: 'Camarista', startDate: '2025-01-01', status: 'active' }
-    ]
-  },
-  {
-    id: 'emp-2',
-    employeeNumber: '1002',
-    name: 'Maria Lopez',
-    hotelId: 'hotel-2',
-    isActive: true,
-    role: 'Recepcionista',
-    employeeType: 'temporal',
-    isBlacklisted: false,
-    payrollType: 'Workrecord',
-    lastReviewedTimestamp: null,
-    documentacion_completa: true,
-    assignments: [
-      { id: 'asgn-2', employeeId: 'emp-2', hotelId: 'hotel-2', role: 'Recepcionista', startDate: '2025-01-01', status: 'active' }
-    ]
-  }
-];
-
 export const employeeService = {
+  // Generamos el cliente dentro de las funciones para asegurar que Amplify esté configurado
+  getClient() {
+    return generateClient<Schema>();
+  },
+
   async getAll(): Promise<Employee[]> {
-    console.info('[OFFLINE] Obteniendo empleados mock con historial');
-    return [...mockEmployees];
+    console.info('📡 [AWS] Intentando obtener empleados de la nube...');
+    try {
+      const client = this.getClient();
+      const { data: employees } = await client.models.Employee.list();
+      console.info(`✅ [AWS] ${employees.length} empleados obtenidos.`);
+      return employees.map(emp => ({
+        id: emp.id,
+        employeeNumber: emp.employee_number,
+        name: emp.name,
+        hotelId: emp.hotelId || '',
+        role: emp.role,
+        isActive: emp.is_active || true,
+        employeeType: (emp.employee_type as 'permanente' | 'temporal') || 'permanente',
+        payrollType: (emp.payroll_type as 'timesheet' | 'Workrecord') || 'timesheet',
+        documentacion_completa: emp.documentacion_completa || true,
+        isBlacklisted: false,
+        lastReviewedTimestamp: null,
+      }));
+    } catch (error) {
+      console.error('❌ Error al obtener empleados de AWS:', error);
+      return [];
+    }
   },
 
   async create(employee: Partial<Employee>): Promise<void> {
-    const newId = `emp-${Date.now()}`;
-    
-    // GENERACIÓN AUTOMÁTICA DEL NÚMERO DE EMPLEADO (Formato: YY-NNN)
-    let finalEmployeeNumber = employee.employeeNumber;
-    
-    if (!finalEmployeeNumber) {
-      const currentYear = new Date().getFullYear().toString().slice(-2); // "26"
-      const yearPrefix = `${currentYear}-`;
-      
-      // Buscar el número más alto del año actual
-      const sameYearNumbers = mockEmployees
-        .map(e => e.employeeNumber)
-        .filter(num => num.startsWith(yearPrefix))
-        .map(num => parseInt(num.split('-')[1] || '0'))
-        .sort((a, b) => b - a);
-      
-      const nextId = (sameYearNumbers[0] || 0) + 1;
-      finalEmployeeNumber = `${yearPrefix}${nextId.toString().padStart(3, '0')}`;
-    }
+    console.info('📡 [AWS] Creando nuevo empleado en la nube...');
+    try {
+      const client = this.getClient();
+      let finalNumber = employee.employeeNumber;
+      if (!finalNumber) {
+        const year = new Date().getFullYear().toString().slice(-2);
+        finalNumber = `${year}-${Math.floor(Math.random() * 1000).toString().padStart(3, '0')}`;
+      }
 
-    const newEmployee: Employee = {
-      ...employee,
-      id: newId,
-      employeeNumber: finalEmployeeNumber,
-      assignments: employee.hotelId ? [
-        { 
-          id: `asgn-${Date.now()}`, 
-          employeeId: newId, 
-          hotelId: employee.hotelId, 
-          role: employee.role || 'Sin Cargo', 
-          startDate: new Date().toISOString().split('T')[0], 
-          status: 'active' 
-        }
-      ] : []
-    } as Employee;
-    
-    mockEmployees.push(newEmployee);
-    console.info('[OFFLINE] Empleado creado con Nº:', finalEmployeeNumber);
+      await client.models.Employee.create({
+        employee_number: finalNumber,
+        name: employee.name || 'Sin Nombre',
+        role: employee.role || 'Sin Cargo',
+        hotelId: employee.hotelId,
+        is_active: true,
+        employee_type: employee.employeeType || 'permanente',
+        payroll_type: employee.payrollType || 'timesheet',
+        documentacion_completa: employee.documentacion_completa ?? true,
+      });
+      
+      console.info('✅ Empleado creado exitosamente en AWS.');
+    } catch (error) {
+      console.error('❌ Error al crear empleado en AWS:', error);
+      throw error;
+    }
   },
 
   async update(id: string, updates: Partial<Employee>): Promise<void> {
-    const existingIndex = mockEmployees.findIndex(e => e.id === id);
-    if (existingIndex === -1) return;
-
-    const oldEmployee = mockEmployees[existingIndex];
-    
-    // LÓGICA DE TRASLADO: Detectar si el hotel cambió
-    if (updates.hotelId && updates.hotelId !== oldEmployee.hotelId) {
-      console.info('[OFFLINE] ¡Traslado detectado! De:', oldEmployee.hotelId, 'a:', updates.hotelId);
-      
-      const assignments = oldEmployee.assignments || [];
-      
-      // 1. Cerrar asignación actual
-      const updatedAssignments: EmployeeAssignment[] = assignments.map(as => 
-        as.status === 'active' ? { ...as, status: 'transferred', endDate: new Date().toISOString().split('T')[0] } : as
-      );
-
-      // 2. Abrir nueva asignación
-      updatedAssignments.push({
-        id: `asgn-${Date.now()}`,
-        employeeId: id,
+    try {
+      const client = this.getClient();
+      await client.models.Employee.update({
+        id,
+        name: updates.name,
+        role: updates.role,
         hotelId: updates.hotelId,
-        role: updates.role || oldEmployee.role,
-        startDate: new Date().toISOString().split('T')[0],
-        status: 'active'
+        is_active: updates.isActive,
+        employee_type: updates.employeeType,
+        payroll_type: updates.payrollType,
+        documentacion_completa: updates.documentacion_completa
       });
-
-      updates.assignments = updatedAssignments;
+    } catch (error) {
+      console.error('❌ Error al actualizar en AWS:', error);
     }
-
-    mockEmployees[existingIndex] = { ...oldEmployee, ...updates };
-    console.info('[OFFLINE] Empleado actualizado con historial:', id, updates);
   },
 
   async delete(id: string): Promise<void> {
-    mockEmployees = mockEmployees.filter(e => e.id !== id);
-    console.info('[OFFLINE] Empleado y su historial eliminados:', id);
+    try {
+      const client = this.getClient();
+      await client.models.Employee.delete({ id });
+    } catch (error) {
+      console.error('❌ Error al eliminar en AWS:', error);
+    }
   }
 };

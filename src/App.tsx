@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
-import { CircularProgress, ThemeProvider, CssBaseline, Box, Typography } from '@mui/material';
+import { CircularProgress, ThemeProvider, CssBaseline, Box } from '@mui/material';
 import { Authenticator, useAuthenticator } from '@aws-amplify/ui-react';
 import '@aws-amplify/ui-react/styles.css';
 
@@ -22,6 +22,7 @@ import HistoricalReportPage from './pages/HistoricalReportPage';
 import UsersPage from './pages/UsersPage';
 import { useAuth } from './hooks/useAuth';
 import { AuthProvider } from './contexts/AuthContext';
+import { StaffingRequestsProvider } from './contexts/StaffingRequestsContext'; // Importación necesaria
 import { lightTheme, darkTheme } from './theme';
 import { PATHS } from './routes/paths';
 import { ProtectedRoute } from './components/common/ProtectedRoute';
@@ -61,7 +62,7 @@ function AppContent() {
   return (
     <ThemeProvider theme={theme}>
       <CssBaseline />
-      <Router> {/* Router añadido aquí */}
+      <Router>
         <Routes>
           <Route path={PATHS.LOGIN} element={<Navigate to={PATHS.DASHBOARD} replace />} />
 
@@ -94,7 +95,9 @@ function App() {
   return (
     <Authenticator.Provider>
       <AuthProvider>
-        <AppContent />
+        <StaffingRequestsProvider> {/* Envolvemos aquí también */}
+          <AppContent />
+        </StaffingRequestsProvider>
       </AuthProvider>
     </Authenticator.Provider>
   );
