@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
 import { CircularProgress, ThemeProvider, CssBaseline, Box, Typography } from '@mui/material';
-import { Authenticator, useAuthenticator, View, Image, useTheme } from '@aws-amplify/ui-react';
+import { Authenticator, useAuthenticator } from '@aws-amplify/ui-react';
 import '@aws-amplify/ui-react/styles.css';
 
 import MainLayout from './layouts/MainLayout';
@@ -22,12 +22,13 @@ import HistoricalReportPage from './pages/HistoricalReportPage';
 import LoginPage from './pages/LoginPage';
 import UsersPage from './pages/UsersPage';
 import { useAuth } from './hooks/useAuth';
+import { AuthProvider } from './contexts/AuthContext'; // Importación vital
 import { lightTheme, darkTheme } from './theme';
 import { PATHS } from './routes/paths';
 import { ProtectedRoute } from './components/common/ProtectedRoute';
 
 function AppContent() {
-  const { authStatus, user } = useAuthenticator();
+  const { authStatus } = useAuthenticator();
   const { profile, loading } = useAuth();
   const [forceShow, setForceShow] = useState(false);
 
@@ -63,17 +64,11 @@ function AppContent() {
     <ThemeProvider theme={theme}>
       <CssBaseline />
       <Routes>
-        {/* Rutas Públicas */}
         <Route path={PATHS.LOGIN} element={<Navigate to={PATHS.DASHBOARD} replace />} />
 
-        {/* Rutas Privadas Protegidas */}
         <Route path="/" element={<ProtectedRoute><MainLayout /></ProtectedRoute>}>
           <Route index element={<DashboardPage />} />
-          
-          <Route path={PATHS.USERS} element={
-            <ProtectedRoute allowedRoles={['ADMIN']}><UsersPage /></ProtectedRoute>
-          } />
-
+          <Route path={PATHS.USERS} element={<ProtectedRoute allowedRoles={['ADMIN']}><UsersPage /></ProtectedRoute>} />
           <Route path={PATHS.EMPLOYEES} element={<EmployeesPage />} />
           <Route path={PATHS.HOTELS} element={<HotelsPage />} />
           <Route path={PATHS.HOTEL_DETAIL} element={<HotelDetailPage />} />
@@ -98,7 +93,9 @@ function AppContent() {
 function App() {
   return (
     <Authenticator.Provider>
-      <AppContent />
+      <AuthProvider> {/* Envolvemos todo aquí para solucionar el error de contexto */}
+        <AppContent />
+      </AuthProvider>
     </Authenticator.Provider>
   );
 }
