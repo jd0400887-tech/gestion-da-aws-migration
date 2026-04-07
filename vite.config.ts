@@ -11,7 +11,7 @@ export default defineConfig({
       injectRegister: 'auto',
       workbox: {
         globPatterns: ['**/*.{js,css,html,ico,png,svg}'],
-        maximumFileSizeToCacheInBytes: 5 * 1024 * 1024, // Aumentado a 5MB
+        maximumFileSizeToCacheInBytes: 5 * 1024 * 1024,
       },
       manifest: {
         name: 'Gestion DA PWA',
@@ -34,24 +34,12 @@ export default defineConfig({
       }
     })
   ],
-  optimizeDeps: {
-    include: ['jspdf', 'jspdf-autotable']
-  },
   build: {
-    chunkSizeWarningLimit: 1000,
+    chunkSizeWarningLimit: 2000,
     rollupOptions: {
       output: {
-        manualChunks: {
-          vendor: ['react', 'react-dom', '@mui/material', '@emotion/react', '@emotion/styled'],
-          utils: ['xlsx', 'jspdf', 'jspdf-autotable', 'date-fns']
-        }
+        manualChunks: undefined
       }
-    }
-  },
-  resolve: {
-    alias: {
-      // Esto evita que el build falle si el archivo de AWS aún no existe
-      './amplify_outputs.json': './amplify_outputs.json'
     }
   }
 })
