@@ -2,23 +2,24 @@
 
 Todos los cambios notables en este proyecto serán documentados en este archivo.
 
-## [0.4.0] - 2026-04-03 (Sesión 4 - Migración Cuenta Oficial & Infraestructura Cloud Real)
+## [0.4.0] - 2026-04-03 (Sesión 4 - Consolidación AWS Cloud & Estabilidad Total)
 
 ### Añadido
-- **Migración de Propiedad:** Vinculación exitosa de la terminal y el código con la cuenta oficial de la empresa (**066205662004**), garantizando el control total de OranjeApp por parte de la organización.
-- **Inauguración de Región (Bootstrap):** Proceso de "Bootstrap" de AWS CDK completado en la región `us-east-1`, habilitando la capacidad de despliegue profesional.
-- **Servidor RDS Oficial:** Lanzamiento de la instancia **PostgreSQL 16.6** (`oranjeapp-db-v1`) en la cuenta corporativa. El servidor ya se encuentra en estado **Disponible**.
-- **Despliegue Web Real:** Configuración de **AWS Amplify Hosting**. La aplicación ya es accesible públicamente en el link oficial de AWS: [https://master.d35qt8j7z8t8yu.amplifyapp.com/](https://master.d35qt8j7z8t8yu.amplifyapp.com/).
-- **Seguridad de Acceso:** Integración del componente `Authenticator` de AWS. La App ahora está protegida bajo estándares de seguridad corporativa (Cognito).
+- **Infraestructura Real Time:** Despliegue exitoso del Stack de backend en **N. Virginia (us-east-1)**, estableciendo el entorno definitivo de producción y datos.
+- **Contexto Global de Hoteles:** Implementación de `HotelsContext.tsx` para centralizar la información de hoteles y empleados, optimizando el rendimiento global de la App.
+- **Autenticación Reactiva:** Mejora del `AuthContext.tsx` mediante el uso de `Amplify Hub` para detectar inicios y cierres de sesión en tiempo real, eliminando pantallas negras.
+- **Primeros Datos Reales:** Confirmación del ciclo completo de datos (Lectura/Escritura) con el primer empleado registrado físicamente en la base de datos de AWS.
 
 ### Cambiado
-- **Arquitectura de Datos:** Refactorización de `amplify/data/resource.ts` para cumplir con las validaciones de esquema de AWS Amplify Gen 2.
-- **Limpieza de Credenciales:** Eliminación de conflictos entre cuentas mediante la depuración de variables de entorno y llaves de acceso CLI.
+- **Optimización de Servicios:** Refactorización de `employeeService`, `hotelService` y `staffingService` con lógica de inicialización perezosa (lazy) para evitar peticiones sin autenticación.
+- **Arquitectura de Componentes:** Reestructuración de `App.tsx` para envolver los proveedores de datos (`Hotels`, `Staffing`) solo tras una autenticación exitosa, garantizando un arranque limpio.
+- **Eliminación de Bucles:** Corrección de bucles infinitos de renderizado mediante la eliminación de suscripciones Realtime de Supabase y el uso de `useRef` para control de carga.
+- **Estructura de Red:** Configuración del `ProtectedRoute` para delegar la seguridad principal al `Authenticator` de AWS, resolviendo el bucle de redirección infinita al cerrar sesión.
 
 ### Técnico
-- Verificación de identidad AWS exitosa en la cuenta corporativa (`aws sts get-caller-identity`).
-- Configuración de persistencia de credenciales en `%USERPROFILE%\.aws\credentials`.
-- Preparación del entorno de backend para la creación física de tablas (Próxima Sesión).
+- **Limpieza de "Fantasmas":** Eliminación definitiva de referencias a `jspdf` y `supabase` que bloqueaban la compilación en la nube.
+- **Configuración de Salida:** Creación del archivo `vite.svg` faltante y limpieza de la consola del navegador.
+- **Persistencia Cloud:** Generación del archivo `amplify_outputs.json` definitivo vinculado a la región de Virginia.
 
 ---
 

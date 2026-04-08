@@ -2,71 +2,80 @@ import { generateClient } from 'aws-amplify/api';
 import type { Schema } from '../../amplify/data/resource';
 import type { Hotel } from '../types';
 
-const client = generateClient<Schema>();
-
 /**
- * SERVICIO PROFESIONAL DE HOTELES (AWS AMPLIFY)
- * Conexión directa con la base de datos en la nube.
+ * SERVICIO PROFESIONAL DE HOTELES (AWS RDS)
+ * Conectado directamente a PostgreSQL en Virginia.
  */
 export const hotelService = {
+  getClient() {
+    return generateClient<Schema>();
+  },
+
   async getAll(): Promise<Hotel[]> {
-    console.info('📡 [AWS] Intentando obtener hoteles de la nube...');
     try {
+      const client = this.getClient();
+      console.info('📡 [AWS] Consultando hoteles en RDS PostgreSQL...');
       const { data: hotels } = await client.models.Hotel.list();
-      console.info(`✅ [AWS] ${hotels.length} hoteles obtenidos.`);
+      
       return hotels.map(h => ({
         id: h.id,
         name: h.name,
         city: h.city,
         address: h.address || '',
-        latitude: null,
-        longitude: null,
-        imageUrl: null,
-        zone: (h.zone as 'Centro' | 'Norte' | 'Noroeste') || 'Centro',
-        totalEmployees: 0,
-        activeEmployees: 0
+        latitude: h.latitude || undefined,
+        longitude: h.longitude || undefined,
+        imageUrl: h.image_url || undefined,
+        zone: (h.zone as 'Centro' | 'Norte' | 'Noroeste') || 'Centro'
       }));
-    } catch (error) {
-      console.error('❌ Error al obtener hoteles de AWS:', error);
+    } catch (error: any) {
+      if (error.message?.includes('No current user')) return [];
+      console.error('❌ Error al obtener hoteles de RDS:', error);
       return [];
     }
   },
 
   async create(hotel: Partial<Hotel>): Promise<void> {
-    console.info('📡 [AWS] Creando nuevo hotel en la nube...');
     try {
+      const client = this.getClient();
       await client.models.Hotel.create({
         name: hotel.name || 'Nuevo Hotel',
-        city: hotel.city || 'Desconocida',
-        address: hotel.address || '',
-        zone: hotel.zone || 'Centro',
+        city: hotel.city || 'Ciudad',
+        address: hotel.address,
+        latitude: hotel.latitude,
+        longitude: hotel.longitude,
+        image_url: hotel.imageUrl,
+        zone: hotel.zone || 'Centro'
       });
-      console.info('✅ Hotel creado exitosamente en AWS.');
     } catch (error) {
-      console.error('❌ Error al crear hotel en AWS:', error);
+      console.error('❌ Error al crear hotel en RDS:', error);
       throw error;
     }
   },
 
   async update(id: string, updates: Partial<Hotel>): Promise<void> {
     try {
+      const client = this.getClient();
       await client.models.Hotel.update({
         id,
         name: updates.name,
         city: updates.city,
         address: updates.address,
-        zone: updates.zone,
+        latitude: updates.latitude,
+        longitude: updates.longitude,
+        image_url: updates.imageUrl,
+        zone: updates.zone
       });
     } catch (error) {
-      console.error('❌ Error al actualizar en AWS:', error);
+      console.error('❌ Error al actualizar hotel en RDS:', error);
     }
   },
 
   async delete(id: string): Promise<void> {
     try {
+      const client = this.getClient();
       await client.models.Hotel.delete({ id });
     } catch (error) {
-      console.error('❌ Error al eliminar en AWS:', error);
+      console.error('❌ Error al eliminar hotel en RDS:', error);
     }
   }
 };

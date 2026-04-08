@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
-import { supabase } from '../utils/supabase';
+import { generateClient } from 'aws-amplify/api';
+import type { Schema } from '../../amplify/data/resource';
 
 export interface PayrollReview {
   id: string;
@@ -14,17 +15,25 @@ export function usePayrollHistory(from: Date, to: Date) {
 
   const fetchHistory = useCallback(async () => {
     setLoading(true);
-    const { data, error } = await supabase
-      .from('payroll_review_history')
-      .select('*')
-      .gte('review_date', from.toISOString())
-      .lte('review_date', to.toISOString());
+    try {
+      const client = generateClient<Schema>();
+      const { data } = await client.models.PayrollReview.list();
+      
+      // Filtro manual por fecha (AWS Amplify list no siempre soporta filtros complejos de fecha en RDS por defecto)
+      const filtered = data.filter(r => {
+        const date = new Date(r.review_date);
+        return date >= from && date <= to;
+      });
 
-    if (error) {
-      console.error('Error fetching payroll history:', error);
+      setHistory(filtered.map(r => ({
+        id: r.id,
+        employee_id: r.employee_id,
+        review_date: r.review_date,
+        overtime_hours: r.overtime_hours || 0
+      })));
+    } catch (error) {
+      console.error('Error fetching payroll history from AWS:', error);
       setHistory([]);
-    } else {
-      setHistory(data as PayrollReview[]);
     }
     setLoading(false);
   }, [from, to]);

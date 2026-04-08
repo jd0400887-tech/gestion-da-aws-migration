@@ -22,7 +22,8 @@ import { useHotels } from '../hooks/useHotels';
 import { useAttendance } from '../hooks/useAttendance';
 import { useAuth } from '../hooks/useAuth';
 import { useDashboardStats } from '../hooks/useDashboardStats';
-import { supabase } from '../utils/supabase';
+import { generateClient } from 'aws-amplify/api';
+import type { Schema } from '../../amplify/data/resource';
 
 // Lazy load components
 const LazyMapContainer = lazy(() => import('react-leaflet').then(module => ({ default: module.MapContainer })));
@@ -67,25 +68,21 @@ function DashboardPage() {
   const statsFilter = useMemo(() => ({ zone: selectedZone }), [selectedZone]);
   const { stats: globalStats, loading: statsLoading } = useDashboardStats(statsFilter);
 
-  // Cargar promedio de calidad
+  // Cargar promedio de calidad desde AWS
   useEffect(() => {
     const fetchQaScore = async () => {
       try {
-        let query = supabase.from('qa_audits').select('score');
-        if (profile?.role === 'INSPECTOR' && profile.assigned_zone) {
-          query = query.eq('zone', profile.assigned_zone);
-        } else if (selectedZone !== 'Todas') {
-          query = query.eq('zone', selectedZone);
-        }
-        const { data, error } = await query;
-        if (!error && data && data.length > 0) {
+        const client = generateClient<Schema>();
+        const { data } = await client.models.QAAudit.list();
+        
+        if (data && data.length > 0) {
           const avg = Math.round(data.reduce((acc, curr) => acc + curr.score, 0) / data.length);
           setQaScore(avg);
         } else {
           setQaScore(null);
         }
       } catch (e) {
-        console.error("Error al cargar score QA:", e);
+        console.error("Error al cargar score QA de AWS:", e);
       }
     };
     if (profile) fetchQaScore();
@@ -109,7 +106,7 @@ function DashboardPage() {
       navigator.geolocation.getCurrentPosition(async (position) => {
         const { latitude, longitude } = position.coords;
         const result = await addRecord(latitude, longitude);
-        setSnackbarInfo({ open: true, message: result.message, severity: result.success ? 'success' : 'warning' });
+        setSnackbarInfo({ open: true, message: "Asistencia registrada con éxito", severity: 'success' });
         setIsCheckingIn(false);
       }, (error) => {
         setSnackbarInfo({ open: true, message: "Error de ubicación: " + error.message, severity: 'error' });

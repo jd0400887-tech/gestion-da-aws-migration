@@ -1,17 +1,17 @@
-
 import { useState, useEffect, useCallback } from 'react';
-import { supabase } from '../utils/supabase';
+import { generateClient } from 'aws-amplify/api';
+import type { Schema } from '../../amplify/data/resource';
 
 export interface Application {
-  id: number;
+  id: string;
   created_at: string;
-  request_candidate_id: number;
+  candidate_id: string;
+  request_id: string;
   status: 'pendiente' | 'completada' | 'empleado_creado';
   completed_at: string | null;
-  // Joined data from staffing_requests
-  candidate_name: string;
-  hotel_id: string;
-  role: string;
+  candidate_name?: string;
+  hotel_id?: string;
+  role?: string;
 }
 
 export const useApplications = () => {
@@ -20,30 +20,33 @@ export const useApplications = () => {
 
   const fetchApplications = useCallback(async () => {
     setLoading(true);
-    const { data, error } = await supabase
-      .from('applications')
-      .select(`
-        *,
-        request_candidate:request_candidates (
-          candidate_name,
-          request:staffing_requests (
-            hotel_id,
-            role
-          )
-        )
-      `);
+    try {
+      const client = generateClient<Schema>();
+      const { data: apps } = await client.models.Application.list();
+      const { data: candidates } = await client.models.Candidate.list();
+      const { data: requests } = await client.models.StaffingRequest.list();
 
-    if (error) {
-      console.error('Error fetching applications:', error);
-      setApplications([]);
-    } else if (data) {
-      const formattedData = data.map(app => ({
-        ...app,
-        candidate_name: app.request_candidate?.candidate_name || 'N/A',
-        hotel_id: app.request_candidate?.request?.hotel_id || 'N/A',
-        role: app.request_candidate?.request?.role || 'N/A',
-      }));
+      const formattedData = apps.map(app => {
+        const candidate = candidates.find(c => c.id === app.candidate_id);
+        const request = requests.find(r => r.id === app.request_id);
+        
+        return {
+          id: app.id,
+          created_at: app.applied_at,
+          candidate_id: app.candidate_id,
+          request_id: app.request_id,
+          status: (app.status as any) || 'pendiente',
+          completed_at: null,
+          candidate_name: candidate?.name || 'N/A',
+          hotel_id: request?.hotel_id || 'N/A',
+          role: request?.role || 'N/A',
+        };
+      });
+
       setApplications(formattedData as Application[]);
+    } catch (error) {
+      console.error('Error fetching applications from AWS:', error);
+      setApplications([]);
     }
     setLoading(false);
   }, []);
@@ -52,91 +55,65 @@ export const useApplications = () => {
     fetchApplications();
   }, [fetchApplications]);
 
-  const updateApplicationStatus = async (id: number, status: 'pendiente' | 'completada' | 'empleado_creado') => {
-    const updates: { status: string, completed_at?: string } = { status };
-    if (status === 'completada' || status === 'empleado_creado') {
-      updates.completed_at = new Date().toISOString();
-    }
-
-    const { error } = await supabase
-      .from('applications')
-      .update(updates)
-      .eq('id', id);
-
-    if (error) {
-      console.error('Error updating application status:', error);
+  const updateApplicationStatus = async (id: string, status: 'pendiente' | 'completada' | 'empleado_creado') => {
+    try {
+      const client = generateClient<Schema>();
+      await client.models.Application.update({
+        id,
+        status,
+      });
+      setApplications(prev => prev.map(app => app.id === id ? { ...app, status } : app));
+    } catch (error) {
+      console.error('Error updating application status in AWS:', error);
       throw error;
     }
-    // No need to fetch again, just update the local state for speed
-    setApplications(prev => prev.map(app => app.id === id ? { ...app, status, completed_at: updates.completed_at || app.completed_at } : app));
   };
 
-  const deleteApplication = async (id: number) => {
-    const { error } = await supabase
-      .from('applications')
-      .delete()
-      .eq('id', id);
-
-    if (error) {
-      console.error('Error deleting application:', error);
+  const deleteApplication = async (id: string) => {
+    try {
+      const client = generateClient<Schema>();
+      await client.models.Application.delete({ id });
+      setApplications(prev => prev.filter(app => app.id !== id));
+    } catch (error) {
+      console.error('Error deleting application from AWS:', error);
       throw error;
     }
-    setApplications(prev => prev.filter(app => app.id !== id));
   };
 
   const addApplication = async (applicationData: { candidate_name: string; hotel_id: string; role: string }) => {
-    // Since we are creating a "simple" application, we create a corresponding staffing_request
-    // with sensible defaults for fields not present in the form.
-    const { data: requestData, error: requestError } = await supabase
-      .from('staffing_requests')
-      .insert({
-        hotel_id: applicationData.hotel_id,
+    try {
+      const client = generateClient<Schema>();
+      
+      const { data: candidate } = await client.models.Candidate.create({
+        name: applicationData.candidate_name,
         role: applicationData.role,
-        status: 'Pendiente', // Corrected default status
-        request_type: 'temporal', // Corrected default request_type
-        num_of_people: 1,
-        start_date: new Date().toISOString().split('T')[0],
-      })
-      .select()
-      .single();
-
-    if (requestError) {
-      console.error('Error creating staffing request:', requestError);
-      throw requestError;
-    }
-
-    const { data: candidateData, error: candidateError } = await supabase
-      .from('request_candidates')
-      .insert({
-        request_id: requestData.id,
-        candidate_name: applicationData.candidate_name,
-      })
-      .select()
-      .single();
-
-    if (candidateError) {
-      console.error('Error creating request candidate:', candidateError);
-      // Attempt to clean up the created staffing_request
-      await supabase.from('staffing_requests').delete().eq('id', requestData.id);
-      throw candidateError;
-    }
-
-    const { error: applicationError } = await supabase
-      .from('applications')
-      .insert({
-        request_candidate_id: candidateData.id,
-        status: 'pendiente',
+        status: 'Postulado'
       });
 
-    if (applicationError) {
-      console.error('Error creating application:', applicationError);
-      // Attempt to clean up created records
-      await supabase.from('request_candidates').delete().eq('id', candidateData.id);
-      await supabase.from('staffing_requests').delete().eq('id', requestData.id);
-      throw applicationError;
-    }
+      if (!candidate) throw new Error("Error al crear candidato");
 
-    await fetchApplications(); // Refresh the list
+      const { data: request } = await client.models.StaffingRequest.create({
+        request_number: `APP-${Date.now()}`,
+        hotel_id: applicationData.hotel_id,
+        role: applicationData.role,
+        start_date: new Date().toISOString().split('T')[0],
+        status: 'Pendiente'
+      });
+
+      if (!request) throw new Error("Error al crear solicitud");
+
+      await client.models.Application.create({
+        candidate_id: candidate.id,
+        request_id: request.id,
+        status: 'pendiente',
+        applied_at: new Date().toISOString()
+      });
+
+      await fetchApplications();
+    } catch (error) {
+      console.error('Error adding application to AWS:', error);
+      throw error;
+    }
   };
 
   return { applications, loading, fetchApplications, updateApplicationStatus, deleteApplication, addApplication };

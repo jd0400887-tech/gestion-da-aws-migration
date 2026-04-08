@@ -9,12 +9,12 @@ import App from './App.tsx';
 import theme from './theme.ts';
 import './index.css';
 
-// Importación directa de la configuración (ya está en Git)
+// Importación de la configuración generada por AWS
 import outputs from '../amplify_outputs.json';
 
 try {
   Amplify.configure(outputs);
-  console.info('🚀 OranjeApp: Conectada a AWS Cloud (Ohio) con éxito.');
+  console.info('🚀 OranjeApp: Conectada a AWS Cloud (Virginia) con éxito.');
 } catch (e) {
   console.error('❌ Error configurando AWS:', e);
 }

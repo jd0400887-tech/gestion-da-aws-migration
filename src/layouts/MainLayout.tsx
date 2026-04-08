@@ -226,24 +226,33 @@ export default function MainLayout() {
       </AppBar>
 
       <Drawer
-        variant="temporary"
+        variant={window.innerWidth < 900 ? "temporary" : "persistent"}
         open={open}
         onClose={handleDrawerToggle}
-        ModalProps={{ keepMounted: true }}
         sx={{
+          width: open ? drawerWidth : 0,
+          flexShrink: 0,
           '& .MuiDrawer-paper': {
-            boxSizing: 'border-box',
             width: drawerWidth,
+            boxSizing: 'border-box',
             bgcolor: '#0F172A',
             borderRight: 'none',
-            boxShadow: '10px 0 30px rgba(0,0,0,0.5)'
+            boxShadow: '10px 0 30px rgba(0,0,0,0.5)',
+            transition: 'all 0.3s ease'
           },
         }}
       >
         {drawerContent}
       </Drawer>
 
-      <Box component="main" sx={{ flexGrow: 1, p: { xs: 2, sm: 3 }, mt: 8, width: '100%' }}>
+      <Box component="main" sx={{ 
+        flexGrow: 1, 
+        p: { xs: 2, sm: 3 }, 
+        mt: 8, 
+        width: '100%',
+        marginLeft: (open && window.innerWidth >= 900) ? 0 : 0,
+        transition: 'margin 0.3s ease'
+      }}>
         <Outlet />
       </Box>
 

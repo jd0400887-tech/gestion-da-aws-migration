@@ -20,12 +20,17 @@ import { useAuth } from '../hooks/useAuth';
 import { QA_TEMPLATES, QATemplate } from '../data/qaTemplates';
 import QAFormDialog from '../components/qa/QAFormDialog';
 import QADetailsDialog from '../components/qa/QADetailsDialog';
-import { supabase } from '../utils/supabase';
+import { generateClient } from 'aws-amplify/api';
+import type { Schema } from '../../amplify/data/resource';
+import { useHotels } from '../hooks/useHotels';
+import { useEmployees } from '../hooks/useEmployees';
 
 export default function QAPage() {
   const theme = useTheme();
   const isLight = theme.palette.mode === 'light';
-  const { profile, session } = useAuth();
+  const { profile, user } = useAuth();
+  const { hotels } = useHotels();
+  const { employees } = useEmployees();
   
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [isDetailsOpen, setIsDetailsOpen] = useState(false);
@@ -35,33 +40,31 @@ export default function QAPage() {
   const [loading, setLoading] = useState(true);
   const [audits, setAudits] = useState<any[]>([]);
 
-  // Cargar auditorías reales
+  // Cargar auditorías reales de AWS
   const fetchAudits = async () => {
     setLoading(true);
     try {
-      let query = supabase
-        .from('qa_audits')
-        .select('*, employees(name), hotels(name)')
-        .order('created_at', { ascending: false })
-        .limit(10);
+      const client = generateClient<Schema>();
+      const { data } = await client.models.QA_Audit.list();
+      
+      const enrichedAudits = data.map(audit => ({
+        ...audit,
+        hotelName: hotels.find(h => h.id === audit.hotel_id)?.name || 'N/A',
+        inspectorName: profile?.name || 'Inspector',
+        targetName: hotels.find(h => h.id === audit.hotel_id)?.name || 'Hotel'
+      })).sort((a, b) => new Date(b.audit_date).getTime() - new Date(a.audit_date).getTime());
 
-      if (profile?.role === 'INSPECTOR' && profile.assigned_zone) {
-        query = query.eq('zone', profile.assigned_zone);
-      }
-
-      const { data, error } = await query;
-      if (error) throw error;
-      setAudits(data || []);
+      setAudits(enrichedAudits);
     } catch (error: any) {
-      console.error('Error al cargar auditorías:', error.message);
+      console.error('Error al cargar auditorías de AWS:', error.message);
     } finally {
       setLoading(false);
     }
   };
 
   useEffect(() => {
-    if (profile) fetchAudits();
-  }, [profile]);
+    if (profile && hotels.length > 0) fetchAudits();
+  }, [profile, hotels]);
 
   const stats = useMemo(() => {
     if (audits.length === 0) return { totalAudits: 0, avgScore: 0, criticalFailures: 0 };
@@ -83,31 +86,20 @@ export default function QAPage() {
 
   const handleSubmitAudit = async (auditData: any) => {
     try {
-      const isEmployeeAudit = auditData.type === 'staff' || auditData.type === 'room';
-      const { error } = await supabase
-        .from('qa_audits')
-        .insert([{
-          inspector_id: session?.user?.id,
-          type: auditData.type,
-          employee_id: isEmployeeAudit ? auditData.target_id : null,
-          hotel_id: !isEmployeeAudit ? auditData.target_id : null,
-          score: auditData.score,
-          audit_data: auditData.answers,
-          notes: auditData.notes,
-          zone: auditData.zone
-        }]);
+      const client = generateClient<Schema>();
+      await client.models.QAAudit.create({
+        inspector_id: user?.userId || 'unknown',
+        hotel_id: auditData.target_id,
+        score: auditData.score,
+        audit_date: new Date().toISOString(),
+        notes: auditData.notes
+      });
 
-      if (error) throw error;
-      setSnackbar({ open: true, message: 'Auditoría guardada correctamente', severity: 'success' });
+      setSnackbar({ open: true, message: 'Auditoría guardada correctamente en AWS', severity: 'success' });
       fetchAudits();
     } catch (error: any) {
-      setSnackbar({ open: true, message: 'Error al guardar: ' + error.message, severity: 'error' });
+      setSnackbar({ open: true, message: 'Error al guardar en AWS: ' + error.message, severity: 'error' });
     }
-  };
-
-  const getTargetName = (audit: any) => {
-    if (audit.type === 'staff' || audit.type === 'room') return audit.employees?.name || 'Empleado desconocido';
-    return audit.hotels?.name || 'Hotel desconocido';
   };
 
   const getTemplateIcon = (id: string) => {
@@ -130,7 +122,6 @@ export default function QAPage() {
 
   return (
     <Box sx={{ p: { xs: 2, md: 4 } }}>
-      {/* ENCABEZADO */}
       <Paper elevation={0} sx={{ p: 3, mb: 4, borderRadius: 4, background: 'linear-gradient(135deg, rgba(255, 87, 34, 0.05) 0%, rgba(255, 255, 255, 0.02) 100%)', border: '1px solid rgba(255, 87, 34, 0.1)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 2 }}>
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
           <Box sx={{ backgroundColor: 'primary.main', p: 1.5, borderRadius: 2, display: 'flex', boxShadow: '0 4px 12px rgba(255, 87, 34, 0.3)' }}>
@@ -138,12 +129,11 @@ export default function QAPage() {
           </Box>
           <Box>
             <Typography variant="h4" sx={{ fontWeight: 900, letterSpacing: '-0.5px' }}>Calidad QA</Typography>
-            <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 600, textTransform: 'uppercase' }}>Auditorías de Excelencia Operativa - Zona {profile?.assigned_zone || 'Centro'}</Typography>
+            <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 600, textTransform: 'uppercase' }}>Auditorías de Excelencia Operativa - AWS Cloud</Typography>
           </Box>
         </Box>
       </Paper>
 
-      {/* RESUMEN DE ESTADÍSTICAS */}
       <Grid container spacing={3} sx={{ mb: 5 }}>
         {[
           { label: 'Auditorías Realizadas', val: stats.totalAudits, icon: <HistoryIcon />, color: '#2196F3' },
@@ -163,7 +153,6 @@ export default function QAPage() {
       </Grid>
 
       <Grid container spacing={4}>
-        {/* SELECTOR DE AUDITORÍAS */}
         <Grid item xs={12} md={7}>
           <Typography variant="h6" sx={{ fontWeight: 800, mb: 3 }}>Nueva Auditoría</Typography>
           <Grid container spacing={2}>
@@ -187,7 +176,6 @@ export default function QAPage() {
           </Grid>
         </Grid>
 
-        {/* HISTORIAL RECIENTE */}
         <Grid item xs={12} md={5}>
           <Typography variant="h6" sx={{ fontWeight: 800, mb: 3 }}>Actividad Reciente</Typography>
           <Paper sx={{ borderRadius: 4, overflow: 'hidden', bgcolor: isLight ? 'white' : 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.05)' }}>
@@ -199,9 +187,9 @@ export default function QAPage() {
                   <Box key={audit.id}>
                     <ListItem sx={{ py: 2, cursor: 'pointer', '&:hover': { bgcolor: 'rgba(255,255,255,0.03)' } }} onClick={() => handleOpenDetails(audit)}>
                       <ListItemAvatar>
-                        <Avatar sx={{ bgcolor: 'rgba(255,255,255,0.05)', color: getTemplateColor(audit.type) }}>{getTemplateIcon(audit.type)}</Avatar>
+                        <Avatar sx={{ bgcolor: 'rgba(255,255,255,0.05)', color: getTemplateColor('hotel') }}>{getTemplateIcon('hotel')}</Avatar>
                       </ListItemAvatar>
-                      <ListItemText primary={getTargetName(audit)} secondary={new Date(audit.created_at).toLocaleDateString('es-ES', { day: 'numeric', month: 'long', hour: '2-digit', minute: '2-digit' })} primaryTypographyProps={{ fontWeight: 'bold' }} />
+                      <ListItemText primary={audit.targetName} secondary={new Date(audit.audit_date).toLocaleDateString('es-ES', { day: 'numeric', month: 'long', hour: '2-digit', minute: '2-digit' })} primaryTypographyProps={{ fontWeight: 'bold' }} />
                       <Box sx={{ textAlign: 'right' }}>
                         <Typography variant="h6" sx={{ fontWeight: 900, color: audit.score >= 90 ? 'success.main' : (audit.score >= 70 ? 'warning.main' : 'error.main') }}>{audit.score}%</Typography>
                         <Typography variant="caption" color="text.secondary">Calificación</Typography>
@@ -214,7 +202,7 @@ export default function QAPage() {
             ) : (
               <Box sx={{ p: 5, textAlign: 'center', opacity: 0.5 }}>
                 <HistoryIcon sx={{ fontSize: 40, mb: 1 }} />
-                <Typography variant="body2">No se han realizado auditorías aún.</Typography>
+                <Typography variant="body2">No se han realizado auditorías aún en AWS.</Typography>
               </Box>
             )}
           </Paper>

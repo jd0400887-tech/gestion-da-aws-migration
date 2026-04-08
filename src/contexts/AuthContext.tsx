@@ -1,116 +1,80 @@
-import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
-import { supabase } from '../utils/supabase';
+import { createContext, useContext, useState, useEffect, ReactNode, useCallback } from 'react';
+import { getCurrentUser, fetchUserAttributes, signOut as amplifySignOut } from 'aws-amplify/auth';
+import { Hub } from 'aws-amplify/utils';
 import { Profile } from '../types';
-import { Session } from '@supabase/supabase-js';
 
 interface AuthContextType {
-  session: Session | null;
+  session: any | null;
   profile: Profile | null;
   loading: boolean;
   signOut: () => Promise<void>;
-  signIn: (email: string, password: string) => Promise<any>;
+  refreshUser: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
-  const [session, setSession] = useState<Session | null>(null);
+  const [session, setSession] = useState<any | null>(null);
   const [profile, setProfile] = useState<Profile | null>(null);
   const [loading, setLoading] = useState(true);
 
-  const fetchProfile = async (userId: string, email?: string) => {
+  const loadUser = useCallback(async () => {
     try {
-      const { data, error } = await supabase
-        .from('profiles')
-        .select('*')
-        .eq('id', userId)
-        .maybeSingle();
+      setLoading(true);
+      const user = await getCurrentUser();
+      const attributes = await fetchUserAttributes();
+      
+      setSession(user);
+      setProfile({
+        id: user.userId,
+        email: attributes.email || '',
+        role: (attributes['custom:role'] as any) || 'ADMIN',
+        assigned_zone: null,
+        permissions: ['ALL']
+      });
+    } catch (error) {
+      setSession(null);
+      setProfile(null);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
 
-      if (error) {
-        console.error('Error al obtener perfil:', error.message);
-        throw error;
-      }
+  useEffect(() => {
+    // 1. Carga inicial
+    loadUser();
 
-      if (!data) {
-        // Si no existe el perfil, devolvemos uno temporal basado en la sesión
-        console.info('Perfil no encontrado en BD para el usuario:', userId, '. Usando perfil temporal.');
-        return { 
-          id: userId, 
-          email: email || '', 
-          role: 'INSPECTOR', 
-          assigned_zone: null,
-          permissions: [] 
-        } as Profile;
+    // 2. Escuchar eventos de AWS (Login/Logout) en tiempo real
+    const unsubscribe = Hub.listen('auth', ({ payload }) => {
+      switch (payload.event) {
+        case 'signedIn':
+          loadUser();
+          break;
+        case 'signedOut':
+          setSession(null);
+          setProfile(null);
+          break;
       }
-      return data;
-    } catch (err) {
-      console.warn('Error recuperando perfil, usando fallback:', err);
-      return { id: userId, email: email || '', role: 'INSPECTOR', assigned_zone: null, permissions: [] } as Profile;
+    });
+
+    return () => unsubscribe();
+  }, [loadUser]);
+
+  const signOut = async () => {
+    try {
+      setLoading(true);
+      await amplifySignOut();
+      localStorage.clear();
+      sessionStorage.clear();
+    } catch (error) {
+      console.error('Error al cerrar sesión:', error);
+    } finally {
+      setLoading(false);
     }
   };
 
-  useEffect(() => {
-    let isMounted = true;
-
-    // Función única para actualizar todo el estado de una vez
-    const updateAuthState = async (newSession: Session | null) => {
-      if (!isMounted) return;
-      
-      setSession(newSession);
-      if (newSession?.user) {
-        const userProfile = await fetchProfile(newSession.user.id, newSession.user.email);
-        if (isMounted) setProfile(userProfile);
-      } else {
-        if (isMounted) setProfile(null);
-      }
-      
-      if (isMounted) setLoading(false);
-    };
-
-    // MOCK MODE: Desconectado de Supabase para desarrollo
-    const mockSession = { 
-      user: { id: 'mock-id', email: 'admin@oranjeapp.com' },
-      access_token: 'mock-token',
-      expires_at: 9999999999,
-      refresh_token: 'mock-refresh'
-    } as any;
-    
-    const mockProfile = { 
-      id: 'mock-id', 
-      email: 'admin@oranjeapp.com', 
-      role: 'ADMIN', 
-      assigned_zone: null, 
-      permissions: ['ALL'] 
-    } as Profile;
-
-    setSession(mockSession);
-    setProfile(mockProfile);
-    setLoading(false);
-
-    // Desactivamos el escuchador real de Supabase temporalmente
-    /*
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      updateAuthState(session);
-    });
-    ...
-    */
-  }, []);
-
-  const signOut = async () => {
-    setLoading(true);
-    localStorage.clear();
-    sessionStorage.clear();
-    await supabase.auth.signOut();
-    setSession(null);
-    setProfile(null);
-    setLoading(false);
-  };
-
-  const signIn = (email: string, password: string) => 
-    supabase.auth.signInWithPassword({ email, password });
-
   return (
-    <AuthContext.Provider value={{ session, profile, loading, signOut, signIn }}>
+    <AuthContext.Provider value={{ session, profile, loading, signOut, refreshUser: loadUser }}>
       {children}
     </AuthContext.Provider>
   );

@@ -12,5 +12,10 @@ const backend = defineBackend({
   data,
 });
 
-// Aquí configuraremos la conexión directa con el RDS en la próxima sesión
-// utilizando la integración de AWS CDK para máxima velocidad.
+/**
+ * CONFIGURACIÓN DE RDS POSTGRESQL (N. VIRGINIA)
+ * Host: oranjeapp-db-v3.cbu0qiwu6p8s.us-east-1.rds.amazonaws.com
+ * Database: oranjeapp_db
+ */
+// Los resolvers de SQL se conectan automáticamente cuando el esquema 
+// se despliega con el ID de conexión de la base de datos en la consola de AWS.

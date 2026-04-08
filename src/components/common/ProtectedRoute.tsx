@@ -1,32 +1,40 @@
-import { ReactNode } from 'react';
-import { Navigate } from 'react-router-dom';
+import { Navigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../../hooks/useAuth';
+import { Box, CircularProgress } from '@mui/material';
 import { PATHS } from '../../routes/paths';
 
 interface ProtectedRouteProps {
-  children: ReactNode;
+  children: React.ReactNode;
   allowedRoles?: ('ADMIN' | 'COORDINATOR' | 'INSPECTOR' | 'RECRUITER')[];
 }
 
 /**
- * Componente de orden superior para proteger rutas basado en sesión y roles.
- * Centraliza la lógica de control de acceso (RBAC).
+ * COMPONENTE DE PROTECCIÓN DE RUTAS (AWS CLOUD)
+ * Asegura que el usuario tenga una sesión activa y los permisos correctos.
  */
 export const ProtectedRoute = ({ children, allowedRoles }: ProtectedRouteProps) => {
-  const { session, profile, loading } = useAuth();
+  const { profile, loading, user } = useAuth();
+  const location = useLocation();
 
-  // Si está cargando, no redirigir todavía (el App.tsx maneja el spinner global)
-  if (loading) return null;
-
-  // Si no hay sesión, al login
-  if (!session) {
-    return <Navigate to={PATHS.LOGIN} replace />;
+  // Si AWS está consultando la sesión, mostramos cargador
+  if (loading) {
+    return (
+      <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh', bgcolor: '#f5f5f5' }}>
+        <CircularProgress />
+      </Box>
+    );
   }
 
-  // Si hay roles permitidos y el perfil del usuario no coincide, al dashboard
+  // Si no hay usuario en AWS Cognito, el Authenticator en App.tsx debería manejarlo,
+  // pero por seguridad retornamos null aquí si llegamos a este punto sin sesión.
+  if (!user) {
+    return null; 
+  }
+
+  // Verificación de roles (opcional)
   if (allowedRoles && profile && !allowedRoles.includes(profile.role)) {
-    console.warn(`Acceso denegado: El rol ${profile.role} no tiene permiso para esta ruta.`);
-    return <Navigate to={PATHS.DASHBOARD} replace />;
+    console.warn('Acceso denegado por rol:', profile.role);
+    return <Navigate to={PATHS.DASHBOARD} state={{ from: location }} replace />;
   }
 
   return <>{children}</>;
