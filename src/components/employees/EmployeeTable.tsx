@@ -1,14 +1,11 @@
 import { 
-  Paper, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, 
-  IconButton, Chip, Box, Avatar, Typography, Tooltip, Stack, useTheme 
+  Table, TableBody, TableCell, TableContainer, TableHead, 
+  TableRow, Paper, IconButton, Chip, Avatar, Box, Typography, 
+  Tooltip, useTheme, Stack 
 } from '@mui/material';
 import EditIcon from '@mui/icons-material/Edit';
 import DeleteIcon from '@mui/icons-material/Delete';
-import CheckCircleOutlineIcon from '@mui/icons-material/CheckCircleOutline';
-import HighlightOffIcon from '@mui/icons-material/HighlightOff';
-import BadgeIcon from '@mui/icons-material/Badge';
-import ApartmentIcon from '@mui/icons-material/Apartment';
-
+import WhatsAppIcon from '@mui/icons-material/WhatsApp';
 import type { Employee, Hotel } from '../../types';
 import { getInitials } from '../../utils/stringUtils';
 
@@ -19,162 +16,77 @@ interface EmployeeTableProps {
   onDelete: (id: string) => void;
 }
 
-const roleColors: { [key: string]: string } = {
-  'Housekeeper': '#FF5722',
-  'Housekeeping Runner': '#FF9800',
-  'Laundry Attendant': '#2196F3',
-  'General Worker': '#4CAF50',
-  'Supervisor': '#9C27B0',
-};
-
 export default function EmployeeTable({ employees, hotels, onEdit, onDelete }: EmployeeTableProps) {
   const theme = useTheme();
   const isLight = theme.palette.mode === 'light';
 
+  const handleWhatsApp = (phone: string) => {
+    const cleanPhone = phone.replace(/\D/g, '');
+    window.open(`https://wa.me/${cleanPhone}`, '_blank');
+  };
+
   return (
-    <TableContainer 
-      component={Paper} 
-      sx={{ 
-        borderRadius: 3,
-        border: '1px solid rgba(255,255,255,0.05)',
-        backgroundColor: isLight ? '#FFFFFF' : 'rgba(255,255,255,0.02)',
-        overflow: 'hidden',
-        boxShadow: isLight ? '0 4px 6px rgba(0,0,0,0.05)' : 'none'
-      }}
-    >
-      <Table sx={{ minWidth: 650 }} stickyHeader>
-        <TableHead>
+    <TableContainer component={Paper} sx={{ borderRadius: 4, overflow: 'hidden', border: '1px solid rgba(0,0,0,0.05)' }}>
+      <Table>
+        <TableHead sx={{ bgcolor: isLight ? '#f8fafc' : 'rgba(255,255,255,0.02)' }}>
           <TableRow>
-            <TableCell sx={{ fontWeight: 'bold', backgroundColor: isLight ? '#F8FAFC' : 'rgba(255,255,255,0.05)' }}>Empleado</TableCell>
-            <TableCell sx={{ fontWeight: 'bold', backgroundColor: isLight ? '#F8FAFC' : 'rgba(255,255,255,0.05)' }}>Cargo</TableCell>
-            <TableCell sx={{ fontWeight: 'bold', backgroundColor: isLight ? '#F8FAFC' : 'rgba(255,255,255,0.05)' }}>Hotel y Zona</TableCell>
-            <TableCell sx={{ fontWeight: 'bold', backgroundColor: isLight ? '#F8FAFC' : 'rgba(255,255,255,0.05)', textAlign: 'center' }}>Estado</TableCell>
-            <TableCell sx={{ fontWeight: 'bold', backgroundColor: isLight ? '#F8FAFC' : 'rgba(255,255,255,0.05)', textAlign: 'center' }}>Documentación</TableCell>
-            <TableCell sx={{ fontWeight: 'bold', backgroundColor: isLight ? '#F8FAFC' : 'rgba(255,255,255,0.05)', textAlign: 'center' }}>Nómina</TableCell>
-            <TableCell align="right" sx={{ fontWeight: 'bold', backgroundColor: isLight ? '#F8FAFC' : 'rgba(255,255,255,0.05)' }}>Acciones</TableCell>
+            <TableCell sx={{ fontWeight: 800 }}>Colaborador</TableCell>
+            <TableCell sx={{ fontWeight: 800 }}>Cargo</TableCell>
+            <TableCell sx={{ fontWeight: 800 }}>Hotel Asignado</TableCell>
+            <TableCell sx={{ fontWeight: 800 }}>Nómina</TableCell>
+            <TableCell sx={{ fontWeight: 800 }}>Estado</TableCell>
+            <TableCell align="right" sx={{ fontWeight: 800 }}>Acciones</TableCell>
           </TableRow>
         </TableHead>
         <TableBody>
           {employees.map((employee) => {
             const hotel = hotels.find(h => h.id === employee.hotelId);
-            const rColor = roleColors[employee.role] || theme.palette.primary.main;
-            
             return (
-              <TableRow 
-                key={employee.id}
-                hover
-                sx={{ 
-                  '&:last-child td, &:last-child th': { border: 0 },
-                  transition: 'background-color 0.2s',
-                  cursor: 'pointer',
-                  '&:hover': { backgroundColor: isLight ? 'rgba(0,0,0,0.02)' : 'rgba(255,255,255,0.03)' }
-                }}
-                onClick={() => onEdit(employee)}
-              >
-                <TableCell component="th" scope="row">
+              <TableRow key={employee.id} hover>
+                <TableCell>
                   <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-                    <Avatar 
-                      sx={{ 
-                        bgcolor: rColor, 
-                        width: 36, 
-                        height: 36, 
-                        fontSize: '0.85rem',
-                        fontWeight: 800,
-                        boxShadow: `0 2px 8px ${rColor}33`
-                      }}
-                    >
+                    <Avatar sx={{ bgcolor: employee.isBlacklisted ? 'error.main' : 'primary.main', fontWeight: 900, width: 35, height: 35, fontSize: '0.8rem' }}>
                       {getInitials(employee.name)}
                     </Avatar>
                     <Box>
-                      <Typography variant="body2" sx={{ fontWeight: 'bold' }}>{employee.name}</Typography>
-                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-                        <BadgeIcon sx={{ fontSize: 12, color: 'text.secondary' }} />
-                        <Typography variant="caption" color="text.secondary">ID: {employee.employeeNumber}</Typography>
-                      </Box>
+                      <Typography variant="body2" sx={{ fontWeight: 800 }}>{employee.name}</Typography>
+                      <Typography variant="caption" color="text.secondary">ID: {employee.employeeNumber}</Typography>
                     </Box>
                   </Box>
                 </TableCell>
-                
                 <TableCell>
                   <Typography variant="body2" sx={{ fontWeight: 600 }}>{employee.role}</Typography>
                 </TableCell>
-                
                 <TableCell>
-                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                    <ApartmentIcon sx={{ fontSize: 16, color: 'primary.main', opacity: 0.7 }} />
-                    <Box>
-                      <Typography variant="body2" sx={{ fontWeight: 600 }}>{hotel?.name || 'No Asignado'}</Typography>
-                      {hotel?.zone && (
-                        <Typography variant="caption" color="text.secondary" sx={{ textTransform: 'uppercase', fontWeight: 'bold' }}>
-                          {hotel.zone}
-                        </Typography>
-                      )}
-                    </Box>
+                  <Box>
+                    <Typography variant="body2" sx={{ fontWeight: 700 }}>{hotel ? hotel.name : 'No Asignado'}</Typography>
+                    <Typography variant="caption" color="text.secondary">{hotel?.city || '-'}</Typography>
                   </Box>
                 </TableCell>
-                
-                <TableCell align="center">
-                  <Stack direction="row" spacing={1} justifyContent="center" alignItems="center">
-                    <Chip
-                      label={employee.isActive ? 'Activo' : 'Inactivo'}
-                      color={employee.isActive ? 'success' : 'default'}
-                      size="small"
-                      variant={employee.isActive ? 'filled' : 'outlined'}
-                      sx={{ fontWeight: 'bold', fontSize: '0.7rem', height: 20 }}
-                    />
-                    {employee.isBlacklisted && (
-                      <Chip
-                        label="Restringido"
-                        size="small"
-                        color="error"
-                        sx={{ fontWeight: 'bold', fontSize: '0.7rem', height: 20 }}
-                      />
-                    )}
-                  </Stack>
+                <TableCell>
+                  <Chip label={employee.payrollType} size="small" variant="outlined" sx={{ fontWeight: 800, fontSize: '0.65rem' }} />
                 </TableCell>
-                
-                <TableCell align="center">
-                  <Tooltip title={employee.documentacion_completa ? "Todo en orden" : "Pendiente de documentos"}>
-                    <Chip 
-                      label={employee.documentacion_completa ? "Completa" : "Incompleta"} 
-                      color={employee.documentacion_completa ? "success" : "error"} 
-                      size="small" 
-                      variant="outlined"
-                      icon={employee.documentacion_completa ? <CheckCircleOutlineIcon /> : <HighlightOffIcon />}
-                      sx={{ fontWeight: 'bold', fontSize: '0.7rem', height: 24 }}
-                    />
-                  </Tooltip>
-                </TableCell>
-                
-                <TableCell align="center">
+                <TableCell>
                   <Chip 
-                    label={employee.payrollType.toUpperCase()} 
+                    label={employee.isBlacklisted ? 'BLOQUEADO' : (employee.isActive ? 'ACTIVO' : 'INACTIVO')} 
                     size="small" 
-                    variant="outlined"
-                    sx={{ fontWeight: 'bold', fontSize: '0.65rem', border: '1px solid rgba(255,255,255,0.1)' }} 
+                    color={employee.isBlacklisted ? 'error' : (employee.isActive ? 'success' : 'default')}
+                    sx={{ fontWeight: 900, fontSize: '0.65rem' }}
                   />
                 </TableCell>
-                
                 <TableCell align="right">
-                  <Stack direction="row" spacing={0.5} justifyContent="flex-end">
-                    <Tooltip title="Editar">
-                      <IconButton 
-                        size="small" 
-                        onClick={(e) => { e.stopPropagation(); onEdit(employee); }}
-                        sx={{ '&:hover': { color: 'primary.main', backgroundColor: 'rgba(255, 87, 34, 0.1)' } }}
-                      >
-                        <EditIcon fontSize="small" />
+                  <Stack direction="row" spacing={1} justifyContent="flex-end">
+                    {employee.phone && (
+                      <IconButton size="small" onClick={() => handleWhatsApp(employee.phone!)} sx={{ color: '#25D366' }}>
+                        <WhatsAppIcon fontSize="small" />
                       </IconButton>
-                    </Tooltip>
-                    <Tooltip title="Eliminar">
-                      <IconButton 
-                        size="small" 
-                        onClick={(e) => { e.stopPropagation(); onDelete(employee.id); }}
-                        sx={{ '&:hover': { color: 'error.main', backgroundColor: 'rgba(244, 67, 54, 0.1)' } }}
-                      >
-                        <DeleteIcon fontSize="small" />
-                      </IconButton>
-                    </Tooltip>
+                    )}
+                    <IconButton size="small" onClick={() => onEdit(employee)} color="primary">
+                      <EditIcon fontSize="small" />
+                    </IconButton>
+                    <IconButton size="small" onClick={() => onDelete(employee.id)} color="error">
+                      <DeleteIcon fontSize="small" />
+                    </IconButton>
                   </Stack>
                 </TableCell>
               </TableRow>

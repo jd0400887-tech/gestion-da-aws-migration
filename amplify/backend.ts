@@ -1,15 +1,17 @@
 import { defineBackend } from '@aws-amplify/backend';
 import { auth } from './auth/resource';
 import { data } from './data/resource';
+import { storage } from './storage/resource';
 
 /**
  * BACKEND MAESTRO - ORANJEAPP (AWS AMPLIFY GEN 2)
- * Este archivo une la autenticación, los datos RDS y las funciones de Telegram.
+ * Este archivo une la autenticación, los datos RDS, el almacenamiento S3 y funciones.
  */
 
 const backend = defineBackend({
   auth,
   data,
+  storage,
 });
 
 /**

@@ -3,7 +3,7 @@ import { useState, useMemo } from 'react';
 import { 
   Box, Typography, Paper, Grid, List, ListItem, ListItemText, Chip, 
   IconButton, Snackbar, FormControlLabel, Switch, Avatar, Stack, 
-  Divider, Button, Tooltip, CircularProgress, useTheme
+  Divider, Button, Tooltip, CircularProgress, useTheme, TextField, InputAdornment
 } from '@mui/material';
 import ContentCopyIcon from '@mui/icons-material/ContentCopy';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
@@ -13,6 +13,11 @@ import PeopleIcon from '@mui/icons-material/People';
 import MapIcon from '@mui/icons-material/Map';
 import TrendingUpIcon from '@mui/icons-material/TrendingUp';
 import BadgeIcon from '@mui/icons-material/Badge';
+import PersonIcon from '@mui/icons-material/Person';
+import PhoneIcon from '@mui/icons-material/Phone';
+import EmailIcon from '@mui/icons-material/Email';
+import SearchIcon from '@mui/icons-material/Search';
+import OpenInNewIcon from '@mui/icons-material/OpenInNew';
 
 import { MapContainer, TileLayer, Marker, Popup } from 'react-leaflet';
 import { useEmployees } from '../hooks/useEmployees';
@@ -21,6 +26,7 @@ import L from 'leaflet';
 import { useHotels } from '../hooks/useHotels';
 import { useAuth } from '../hooks/useAuth';
 import TurnoverAnalysis from '../components/hotel/TurnoverAnalysis';
+import S3Image from '../components/common/S3Image';
 
 // Leaflet icon fix
 import icon from 'leaflet/dist/images/marker-icon.png';
@@ -42,10 +48,11 @@ export default function HotelDetailPage() {
   
   const { hotels, loading } = useHotels();
   const { employees } = useEmployees();
-  const { profile } = useAuth();
   
   const [showCopySuccess, setShowCopySuccess] = useState(false);
   const [showOnlyPermanent, setShowOnlyPermanent] = useState(false);
+  const [showOnlyActive, setShowOnlyActive] = useState(true); // Filtro solicitado: Activos por defecto
+  const [employeeSearch, setEmployeeSearch] = useState('');
 
   const hotel = hotels.find(h => h.id === hotelId);
 
@@ -61,10 +68,12 @@ export default function HotelDetailPage() {
   
   const displayedEmployees = useMemo(() => {
     return assignedEmployees.filter(employee => {
-      if (showOnlyPermanent) return employee.employeeType === 'permanente';
-      return true;
-    });
-  }, [assignedEmployees, showOnlyPermanent]);
+      const matchesPermanent = showOnlyPermanent ? employee.employeeType === 'permanente' : true;
+      const matchesActive = showOnlyActive ? employee.isActive : true;
+      const matchesSearch = employee.name.toLowerCase().includes(employeeSearch.toLowerCase());
+      return matchesPermanent && matchesActive && matchesSearch;
+    }).sort((a, b) => a.name.localeCompare(b.name));
+  }, [assignedEmployees, showOnlyPermanent, showOnlyActive, employeeSearch]);
 
   const stats = useMemo(() => ({
     total: assignedEmployees.length,
@@ -76,58 +85,64 @@ export default function HotelDetailPage() {
   if (loading) return <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh' }}><CircularProgress /></Box>;
   if (!hotel) return <Box sx={{ p: 4, textAlign: 'center' }}><Typography variant="h5" color="error">Hotel no encontrado</Typography></Box>;
 
-  const mapCenter: [number, number] | null = hotel.latitude ? [hotel.latitude, hotel.longitude!] : null;
+  const mapCenter = useMemo((): [number, number] | null => {
+    if (hotel?.latitude != null && hotel?.longitude != null) {
+      return [Number(hotel.latitude), Number(hotel.longitude)];
+    }
+    return null;
+  }, [hotel?.latitude, hotel?.longitude]);
 
   return (
     <Box sx={{ pb: 5 }}>
-      {/* HEADER / BANNER HERO */}
+      {/* 1. BANNER HERO */}
       <Box sx={{ 
-        height: 220, 
+        height: 280, 
         width: '100%', 
         position: 'relative', 
         overflow: 'hidden',
-        background: hotel.imageUrl 
-          ? `linear-gradient(rgba(0,0,0,0.3), rgba(0,0,0,0.8)), url(${hotel.imageUrl})`
-          : 'linear-gradient(45deg, #1a237e 30%, #FF5722 90%)',
-        backgroundSize: 'cover',
-        backgroundPosition: 'center',
-        display: 'flex',
-        alignItems: 'flex-end',
-        p: { xs: 2, md: 4 },
         mb: 4
       }}>
+        {/* IMAGEN DE FONDO DINÁMICA */}
+        <Box sx={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, zIndex: 0 }}>
+          <S3Image path={hotel.imageUrl} alt={hotel.name} height={280} />
+        </Box>
+
+        {/* Overlay para legibilidad */}
+        <Box sx={{ 
+          position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, 
+          background: 'linear-gradient(to top, rgba(15, 23, 42, 0.9) 0%, rgba(15, 23, 42, 0.3) 100%)',
+          zIndex: 1
+        }} />
         <Button 
           startIcon={<ArrowBackIcon />} 
           onClick={() => navigate('/hoteles')}
-          sx={{ position: 'absolute', top: 20, left: 20, color: 'white', bgcolor: 'rgba(0,0,0,0.3)', backdropFilter: 'blur(5px)', '&:hover': { bgcolor: 'rgba(0,0,0,0.5)' } }}
+          sx={{ position: 'absolute', top: 20, left: 20, color: 'white', bgcolor: 'rgba(255,255,255,0.1)', backdropFilter: 'blur(10px)', border: '1px solid rgba(255,255,255,0.2)', '&:hover': { bgcolor: 'rgba(255,255,255,0.2)' } }}
         >
           Volver
         </Button>
 
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 3, width: '100%' }}>
-          <Avatar 
-            variant="rounded" 
-            sx={{ width: 100, height: 100, bgcolor: 'primary.main', border: '4px solid rgba(255,255,255,0.2)', boxShadow: 10 }}
-          >
-            <ApartmentIcon sx={{ fontSize: 60 }} />
-          </Avatar>
-          <Box sx={{ color: 'white', flexGrow: 1 }}>
+        <Box sx={{ position: 'relative', zIndex: 1, p: { xs: 3, md: 5 }, width: '100%', display: 'flex', alignItems: 'center', gap: 3 }}>
+          <Avatar variant="rounded" sx={{ width: 100, height: 100, bgcolor: 'primary.main', border: '4px solid white', boxShadow: '0 10px 30px rgba(0,0,0,0.5)' }}><ApartmentIcon sx={{ fontSize: 60 }} /></Avatar>
+          <Box sx={{ color: 'white' }}>
             <Stack direction="row" spacing={1} alignItems="center" sx={{ mb: 1 }}>
-              <Chip label={hotel.zone} size="small" sx={{ bgcolor: 'primary.main', color: 'white', fontWeight: 'bold' }} />
+              <Chip label={hotel.hotelCode} size="small" sx={{ bgcolor: 'white', color: 'primary.main', fontWeight: 900 }} />
+              <Chip label={hotel.zone} size="small" sx={{ bgcolor: 'primary.main', color: 'white', fontWeight: 900 }} />
               <Chip label={hotel.city} size="small" variant="outlined" sx={{ color: 'white', borderColor: 'white' }} />
             </Stack>
-            <Typography variant="h3" sx={{ fontWeight: 900, textShadow: '0 2px 10px rgba(0,0,0,0.5)' }}>
-              {hotel.name}
-            </Typography>
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, opacity: 0.8 }}>
-              <LocationOnIcon fontSize="small" />
-              <Typography variant="body1">{hotel.address}</Typography>
-            </Box>
+            <Typography variant="h2" sx={{ fontWeight: 900, textShadow: '0 2px 10px rgba(0,0,0,0.5)', mb: 0.5 }}>{hotel.name}</Typography>
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, opacity: 0.8 }}><LocationOnIcon fontSize="small" /><Typography variant="body1">{hotel.address}</Typography></Box>
           </Box>
         </Box>
       </Box>
 
       <Box sx={{ px: { xs: 2, md: 4 } }}>
+        {/* BARRA DE CONTACTO */}
+        <Paper elevation={0} sx={{ p: 2, mb: 4, borderRadius: 3, bgcolor: isLight ? '#f8fafc' : 'rgba(255,255,255,0.03)', border: '1px solid rgba(0,0,0,0.05)', display: 'flex', gap: 4, flexWrap: 'wrap' }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}><PersonIcon color="primary" fontSize="small" /><Typography variant="body2" sx={{ fontWeight: 'bold' }}>Gerente: <Typography component="span" variant="body2" color="text.secondary">{hotel.managerName || 'No asignado'}</Typography></Typography></Box>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}><PhoneIcon color="primary" fontSize="small" /><Typography variant="body2" sx={{ fontWeight: 'bold' }}>Tel: <Typography component="span" variant="body2" color="text.secondary">{hotel.phone || 'N/A'}</Typography></Typography></Box>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}><EmailIcon color="primary" fontSize="small" /><Typography variant="body2" sx={{ fontWeight: 'bold' }}>Email: <Typography component="span" variant="body2" color="text.secondary">{hotel.email || 'N/A'}</Typography></Typography></Box>
+        </Paper>
+
         {/* TARJETAS DE ESTADÍSTICAS */}
         <Grid container spacing={3} sx={{ mb: 4 }}>
           {[
@@ -137,72 +152,75 @@ export default function HotelDetailPage() {
             { label: 'Restringidos', val: stats.blocked, color: 'error.main', icon: <BadgeIcon /> },
           ].map((s) => (
             <Grid item xs={6} md={3} key={s.label}>
-              <Paper sx={{ p: 2, borderRadius: 3, textAlign: 'center', border: '1px solid rgba(255,255,255,0.05)', bgcolor: 'rgba(255,255,255,0.02)' }}>
+              <Paper sx={{ p: 2, borderRadius: 3, textAlign: 'center', border: '1px solid rgba(0,0,0,0.05)', bgcolor: isLight ? 'white' : 'rgba(255,255,255,0.02)' }}>
                 <Box sx={{ color: s.color, mb: 1, display: 'flex', justifyContent: 'center' }}>{s.icon}</Box>
                 <Typography variant="h4" sx={{ fontWeight: 900 }}>{s.val}</Typography>
-                <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 'bold', textTransform: 'uppercase' }}>{s.label}</Typography>
+                <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 800, textTransform: 'uppercase' }}>{s.label}</Typography>
               </Paper>
             </Grid>
           ))}
         </Grid>
 
         <Grid container spacing={4}>
-          {/* COLUMNA IZQUIERDA: INFO Y MAPA */}
           <Grid item xs={12} lg={5}>
             <Stack spacing={3}>
-              <Paper sx={{ p: 3, borderRadius: 3, border: '1px solid rgba(255,255,255,0.05)', bgcolor: 'rgba(255,255,255,0.02)' }}>
-                <Typography variant="h6" sx={{ fontWeight: 800, mb: 2 }}>Información Técnica</Typography>
-                <Stack spacing={2}>
-                  <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <Typography color="text.secondary">ID del Sistema:</Typography>
-                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                      <Typography variant="body2" sx={{ fontFamily: 'monospace', bgcolor: 'rgba(0,0,0,0.2)', px: 1, borderRadius: 1 }}>{hotel.id}</Typography>
-                      <IconButton onClick={handleCopyId} size="small" color="primary"><ContentCopyIcon fontSize="inherit" /></IconButton>
-                    </Box>
-                  </Box>
-                  <Divider sx={{ opacity: 0.05 }} />
-                  {hotel.latitude && (
-                    <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
-                      <Typography color="text.secondary">Coordenadas:</Typography>
-                      <Typography variant="body2" sx={{ fontWeight: 'bold' }}>{hotel.latitude.toFixed(4)}, {hotel.longitude?.toFixed(4)}</Typography>
-                    </Box>
-                  )}
-                </Stack>
-              </Paper>
-
-              <Paper sx={{ borderRadius: 3, overflow: 'hidden', border: '1px solid rgba(255,255,255,0.05)', height: 300 }}>
+              <Paper sx={{ borderRadius: 4, overflow: 'hidden', border: '1px solid rgba(0,0,0,0.05)', height: 350 }}>
                 {mapCenter ? (
-                  <MapContainer center={mapCenter} zoom={15} style={{ height: '100%', width: '100%' }}>
+                  <MapContainer key={`map-${mapCenter[0]}`} center={mapCenter} zoom={16} style={{ height: '100%', width: '100%' }}>
                     <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
-                    <Marker position={mapCenter}>
-                      <Popup>{hotel.name}</Popup>
-                    </Marker>
+                    <Marker position={mapCenter}><Popup>{hotel.name}</Popup></Marker>
                   </MapContainer>
                 ) : (
-                  <Box sx={{ height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', bgcolor: 'rgba(0,0,0,0.1)' }}>
-                    <MapIcon sx={{ fontSize: 40, opacity: 0.2, mr: 1 }} />
-                    <Typography color="text.secondary">Mapa no disponible</Typography>
+                  <Box sx={{ height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', bgcolor: 'rgba(0,0,0,0.05)' }}>
+                    <MapIcon sx={{ fontSize: 40, opacity: 0.2 }} /><Typography color="text.secondary">Mapa no disponible</Typography>
                   </Box>
                 )}
               </Paper>
+              <Typography variant="caption" sx={{ textAlign: 'center', opacity: 0.3 }}>ID TÉCNICO: {hotel.id}</Typography>
             </Stack>
           </Grid>
 
-          {/* COLUMNA DERECHA: TURNOVER Y LISTA */}
           <Grid item xs={12} lg={7}>
             <Stack spacing={3}>
-              <Box>
-                <TurnoverAnalysis hotelId={hotel.id} />
-              </Box>
-
-              <Paper sx={{ p: 3, borderRadius: 3, border: '1px solid rgba(255,255,255,0.05)', bgcolor: 'rgba(255,255,255,0.02)' }}>
-                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
-                  <Typography variant="h6" sx={{ fontWeight: 800 }}>Personal del Hotel</Typography>
-                  <FormControlLabel
-                    control={<Switch size="small" checked={showOnlyPermanent} onChange={(e) => setShowOnlyPermanent(e.target.checked)} />}
-                    label={<Typography variant="caption" sx={{ fontWeight: 'bold' }}>SÓLO PERMANENTES</Typography>}
-                  />
+              <TurnoverAnalysis hotelId={hotel.id} />
+              
+              {/* LISTA DE PERSONAL MEJORADA */}
+              <Paper sx={{ p: 3, borderRadius: 4, border: '1px solid rgba(0,0,0,0.05)', bgcolor: isLight ? 'white' : 'rgba(255,255,255,0.02)' }}>
+                <Box sx={{ mb: 3 }}>
+                  <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+                    <Typography variant="h6" sx={{ fontWeight: 900 }}>Lista de Personal</Typography>
+                    <Chip label={`${displayedEmployees.length} empleados`} size="small" color="primary" variant="outlined" sx={{ fontWeight: 800 }} />
+                  </Box>
+                  
+                  <Grid container spacing={2} alignItems="center">
+                    <Grid item xs={12} sm={6}>
+                      <TextField 
+                        fullWidth size="small" 
+                        placeholder="Buscar por nombre..." 
+                        value={employeeSearch}
+                        onChange={(e) => setEmployeeSearch(e.target.value)}
+                        InputProps={{ 
+                          startAdornment: <InputAdornment position="start"><SearchIcon fontSize="small" /></InputAdornment>,
+                          sx: { borderRadius: 2 }
+                        }}
+                      />
+                    </Grid>
+                    <Grid item xs={12} sm={6}>
+                      <Stack direction="row" spacing={1} justifyContent="flex-end">
+                        <FormControlLabel
+                          control={<Switch size="small" checked={showOnlyActive} onChange={(e) => setShowOnlyActive(e.target.checked)} color="success" />}
+                          label={<Typography variant="caption" sx={{ fontWeight: 800 }}>ACTIVOS</Typography>}
+                        />
+                        <FormControlLabel
+                          control={<Switch size="small" checked={showOnlyPermanent} onChange={(e) => setShowOnlyPermanent(e.target.checked)} />}
+                          label={<Typography variant="caption" sx={{ fontWeight: 800 }}>PERMANENTES</Typography>}
+                        />
+                      </Stack>
+                    </Grid>
+                  </Grid>
                 </Box>
+
+                <Divider sx={{ mb: 2, opacity: 0.05 }} />
 
                 <List sx={{ px: 0 }}>
                   {displayedEmployees.map(employee => (
@@ -210,40 +228,27 @@ export default function HotelDetailPage() {
                       key={employee.id} 
                       divider 
                       sx={{ 
-                        px: 1, 
-                        py: 2,
-                        '&:hover': { bgcolor: 'rgba(255,255,255,0.02)' },
-                        borderRadius: 2, mb: 1, border: '1px solid transparent'
+                        px: 1, py: 1.5, borderRadius: 3, mb: 1, transition: 'all 0.2s',
+                        '&:hover': { bgcolor: 'rgba(255, 87, 34, 0.03)', transform: 'translateX(5px)' }
                       }}
+                      secondaryAction={
+                        <Tooltip title="Ver Ficha Completa">
+                          <IconButton edge="end" onClick={() => navigate('/empleados')} color="primary" size="small">
+                            <OpenInNewIcon fontSize="small" />
+                          </IconButton>
+                        </Tooltip>
+                      }
                     >
-                      <Avatar sx={{ bgcolor: 'primary.main', mr: 2, width: 40, height: 40, fontWeight: 'bold' }}>
-                        {employee.name[0]}
-                      </Avatar>
+                      <Avatar sx={{ bgcolor: 'primary.main', mr: 2, width: 42, height: 42, fontWeight: 900, fontSize: '0.9rem' }}>{employee.name[0]}</Avatar>
                       <ListItemText
-                        primary={
-                          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
-                            <Typography variant="body1" sx={{ fontWeight: 'bold' }}>{employee.name}</Typography>
-                            <Chip 
-                              label={employee.isActive ? 'ACTIVO' : 'INACTIVO'} 
-                              size="small" 
-                              color={employee.isActive ? 'success' : 'default'}
-                              sx={{ height: 18, fontSize: '0.6rem', fontWeight: 900 }}
-                            />
-                            {employee.isBlacklisted && <Chip label="BLOQUEADO" size="small" color="error" sx={{ height: 18, fontSize: '0.6rem', fontWeight: 900 }} />}
-                          </Box>
-                        }
-                        secondary={
-                          <Typography variant="caption" color="text.secondary">
-                            {employee.role} • {employee.payrollType.toUpperCase()} • ID: {employee.employeeNumber}
-                          </Typography>
-                        }
+                        primary={<Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}><Typography variant="body2" sx={{ fontWeight: 800 }}>{employee.name}</Typography>{!employee.isActive && <Chip label="INACTIVO" size="small" sx={{ height: 16, fontSize: '0.55rem', fontWeight: 900 }} />}</Box>}
+                        secondary={<Typography variant="caption" color="text.secondary">{employee.role} • ID: {employee.employeeNumber}</Typography>}
                       />
                     </ListItem>
                   ))}
                   {displayedEmployees.length === 0 && (
-                    <Box sx={{ py: 4, textAlign: 'center', opacity: 0.5 }}>
-                      <PeopleIcon sx={{ fontSize: 40, mb: 1 }} />
-                      <Typography>No hay personal registrado</Typography>
+                    <Box sx={{ py: 6, textAlign: 'center', opacity: 0.3 }}>
+                      <PeopleIcon sx={{ fontSize: 50, mb: 1 }} /><Typography variant="body2" sx={{ fontWeight: 'bold' }}>No hay personal que coincida</Typography>
                     </Box>
                   )}
                 </List>
@@ -252,17 +257,6 @@ export default function HotelDetailPage() {
           </Grid>
         </Grid>
       </Box>
-
-      <Snackbar
-        open={showCopySuccess}
-        autoHideDuration={2000}
-        onClose={() => setShowCopySuccess(false)}
-        anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
-      >
-        <Paper sx={{ bgcolor: 'success.main', color: 'white', px: 3, py: 1, borderRadius: 2 }}>
-          ID copiado al portapapeles
-        </Paper>
-      </Snackbar>
     </Box>
   );
 }

@@ -1,203 +1,191 @@
 import { 
-  Card, CardContent, Box, Avatar, Typography, Stack, Chip, 
-  IconButton, Tooltip, Divider, useTheme, Badge
+  Card, CardContent, Typography, Box, IconButton, Chip, 
+  Stack, Avatar, Tooltip, Divider, useTheme, Paper 
 } from '@mui/material';
 import EditIcon from '@mui/icons-material/Edit';
 import DeleteIcon from '@mui/icons-material/Delete';
-import CheckCircleOutlineIcon from '@mui/icons-material/CheckCircleOutline';
-import HighlightOffIcon from '@mui/icons-material/HighlightOff';
+import WhatsAppIcon from '@mui/icons-material/WhatsApp';
 import ApartmentIcon from '@mui/icons-material/Apartment';
 import BadgeIcon from '@mui/icons-material/Badge';
-import WorkIcon from '@mui/icons-material/Work';
-import VerifiedUserIcon from '@mui/icons-material/VerifiedUser';
-import WarningAmberIcon from '@mui/icons-material/WarningAmber';
+import GavelIcon from '@mui/icons-material/Gavel';
+import FiberManualRecordIcon from '@mui/icons-material/FiberManualRecord';
 
 import type { Employee, Hotel } from '../../types';
 import { getInitials } from '../../utils/stringUtils';
 
 interface EmployeeCardProps {
   employee: Employee;
-  hotel?: Hotel;
+  hotels: Hotel[];
   onEdit: (employee: Employee) => void;
   onDelete: (id: string) => void;
 }
 
-const roleColors: { [key: string]: string } = {
-  'Housekeeper': '#FF5722',
-  'Housekeeping Runner': '#FF9800',
-  'Laundry Attendant': '#2196F3',
-  'General Worker': '#4CAF50',
-  'Supervisor': '#9C27B0',
-};
-
-export default function EmployeeCard({ employee, hotel, onEdit, onDelete }: EmployeeCardProps) {
+export default function EmployeeCard({ employee, hotels, onEdit, onDelete }: EmployeeCardProps) {
   const theme = useTheme();
   const isLight = theme.palette.mode === 'light';
-  const roleColor = roleColors[employee.role] || theme.palette.primary.main;
+  
+  const hotel = hotels.find(h => h.id === employee.hotelId);
+  const isBlacklisted = employee.isBlacklisted;
+
+  // Estilo de la tarjeta basado en seguridad
+  const cardStyles = {
+    height: '100%',
+    display: 'flex',
+    flexDirection: 'column',
+    borderRadius: 4,
+    position: 'relative',
+    transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+    border: isBlacklisted 
+      ? '2px solid rgba(244, 67, 54, 0.5)' 
+      : `1px solid ${isLight ? 'rgba(0,0,0,0.05)' : 'rgba(255,255,255,0.05)'}`,
+    bgcolor: isBlacklisted 
+      ? (isLight ? '#FFF5F5' : 'rgba(244, 67, 54, 0.05)')
+      : (isLight ? '#FFFFFF' : 'rgba(255,255,255,0.02)'),
+    '&:hover': {
+      transform: 'translateY(-5px)',
+      boxShadow: isBlacklisted 
+        ? '0 10px 30px rgba(244, 67, 54, 0.2)' 
+        : '0 10px 30px rgba(0,0,0,0.1)',
+      borderColor: isBlacklisted ? 'error.main' : 'primary.main',
+    }
+  };
+
+  const handleWhatsApp = () => {
+    if (employee.phone) {
+      const cleanPhone = employee.phone.replace(/\D/g, '');
+      window.open(`https://wa.me/${cleanPhone}`, '_blank');
+    }
+  };
 
   return (
-    <Card 
-      sx={{ 
-        height: '100%',
-        display: 'flex',
-        flexDirection: 'column',
-        borderRadius: 4,
-        position: 'relative',
-        overflow: 'hidden',
-        transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
-        backgroundColor: isLight ? '#FFFFFF' : 'rgba(255,255,255,0.02)',
-        border: '1px solid rgba(255,255,255,0.05)',
-        '&:hover': {
-          transform: 'translateY(-8px)',
-          boxShadow: `0 12px 30px -10px ${isLight ? 'rgba(0,0,0,0.15)' : 'rgba(0,0,0,0.5)'}`,
-          borderColor: roleColor,
-          '& .action-buttons': { opacity: 1, transform: 'translateX(0)' }
-        }
-      }}
-    >
-      {/* Indicador de Estado Lateral */}
-      <Box sx={{ 
-        position: 'absolute', 
-        top: 0, 
-        left: 0, 
-        width: '4px', 
-        height: '100%', 
-        backgroundColor: employee.isBlacklisted ? 'error.main' : (employee.isActive ? 'success.main' : 'text.disabled') 
-      }} />
+    <Card sx={cardStyles}>
+      {/* CABECERA CON ID */}
+      <Box sx={{ position: 'absolute', top: 12, right: 12 }}>
+        <Chip 
+          label={employee.employeeNumber} 
+          size="small" 
+          variant="outlined"
+          sx={{ 
+            fontWeight: 900, 
+            fontSize: '0.65rem', 
+            height: 20,
+            bgcolor: isLight ? 'rgba(0,0,0,0.03)' : 'rgba(255,255,255,0.05)',
+            border: 'none'
+          }} 
+        />
+      </Box>
 
-      <CardContent sx={{ p: 3, pt: 4 }}>
-        <Box sx={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', mb: 2 }}>
-          <Box sx={{ display: 'flex', gap: 2 }}>
-            <Badge
-              overlap="circular"
-              anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
-              variant="dot"
+      <CardContent sx={{ p: 2.5, pt: 3 }}>
+        <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: 2, mb: 2 }}>
+          {/* AVATAR PROFESIONAL */}
+          <Box sx={{ position: 'relative' }}>
+            <Avatar 
               sx={{ 
-                '& .MuiBadge-badge': { 
-                  backgroundColor: employee.isActive ? '#44b700' : '#bdbdbd',
-                  color: '#44b700',
-                  boxShadow: `0 0 0 2px ${theme.palette.background.paper}`,
-                  width: 12, height: 12, borderRadius: '50%',
-                  '&::after': {
-                    position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', borderRadius: '50%',
-                    animation: employee.isActive ? 'ripple 1.2s infinite ease-in-out' : 'none',
-                    border: '1px solid currentColor', content: '""',
-                  },
-                },
-                '@keyframes ripple': {
-                  '0%': { transform: 'scale(.8)', opacity: 1 },
-                  '100%': { transform: 'scale(2.4)', opacity: 0 },
-                },
+                width: 56, height: 56, 
+                bgcolor: isBlacklisted ? 'error.main' : 'primary.main',
+                fontSize: '1.2rem', fontWeight: 900,
+                boxShadow: '0 4px 12px rgba(0,0,0,0.1)'
               }}
             >
-              <Avatar 
+              {getInitials(employee.name)}
+            </Avatar>
+            <Box sx={{ 
+              position: 'absolute', bottom: 0, right: 0, 
+              bgcolor: isLight ? 'white' : '#121212', 
+              borderRadius: '50%', p: 0.2, display: 'flex' 
+            }}>
+              <FiberManualRecordIcon 
                 sx={{ 
-                  bgcolor: roleColor, 
-                  width: 60, 
-                  height: 60, 
-                  fontSize: '1.5rem', 
-                  fontWeight: 800,
-                  boxShadow: `0 4px 12px ${roleColor}44`
-                }}
-              >
-                {getInitials(employee.name)}
-              </Avatar>
-            </Badge>
-            <Box>
-              <Typography variant="h6" sx={{ fontWeight: 800, lineHeight: 1.2, mb: 0.5 }}>
-                {employee.name}
-              </Typography>
-              <Stack direction="row" spacing={1} alignItems="center">
-                <BadgeIcon sx={{ fontSize: 14, color: 'text.secondary' }} />
-                <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 600 }}>
-                  ID: {employee.employeeNumber}
-                </Typography>
-              </Stack>
+                  fontSize: 14, 
+                  color: employee.isActive && !isBlacklisted ? 'success.main' : 'text.disabled' 
+                }} 
+              />
             </Box>
+          </Box>
+
+          <Box sx={{ flexGrow: 1, overflow: 'hidden' }}>
+            <Typography variant="h6" sx={{ fontWeight: 800, lineHeight: 1.2, mb: 0.5, noWrap: true }}>
+              {employee.name}
+            </Typography>
+            <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 700, textTransform: 'uppercase', display: 'flex', alignItems: 'center', gap: 0.5 }}>
+              <BadgeIcon sx={{ fontSize: 14 }} /> {employee.role}
+            </Typography>
           </Box>
         </Box>
 
-        <Stack spacing={1.5} sx={{ mt: 3 }}>
-          <Stack direction="row" spacing={1.5} alignItems="center">
-            <Avatar sx={{ width: 24, height: 24, bgcolor: 'rgba(255,255,255,0.05)' }}>
-              <WorkIcon sx={{ fontSize: 14, color: roleColor }} />
-            </Avatar>
-            <Typography variant="body2" sx={{ fontWeight: 600 }}>{employee.role}</Typography>
-          </Stack>
-
-          <Stack direction="row" spacing={1.5} alignItems="center">
-            <Avatar sx={{ width: 24, height: 24, bgcolor: 'rgba(255,255,255,0.05)' }}>
-              <ApartmentIcon sx={{ fontSize: 14, color: 'primary.main' }} />
-            </Avatar>
-            <Box>
-              <Typography variant="body2" sx={{ fontWeight: 600 }}>{hotel?.name || 'No Asignado'}</Typography>
-              {hotel?.zone && <Typography variant="caption" color="text.secondary">{hotel.zone}</Typography>}
+        <Stack spacing={1.5}>
+          {/* HOTEL ASIGNADO */}
+          <Paper elevation={0} sx={{ p: 1.5, borderRadius: 2, bgcolor: isLight ? '#F1F5F9' : 'rgba(0,0,0,0.2)', border: '1px solid rgba(0,0,0,0.05)' }}>
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+              <ApartmentIcon sx={{ fontSize: 18, color: 'primary.main' }} />
+              <Box>
+                <Typography variant="body2" sx={{ fontWeight: 800, lineHeight: 1 }}>
+                  {hotel ? hotel.name : 'Sin Asignación'}
+                </Typography>
+                <Typography variant="caption" color="text.secondary">
+                  {hotel ? hotel.city : 'Ubicación pendiente'}
+                </Typography>
+              </Box>
             </Box>
-          </Stack>
+          </Paper>
+
+          {/* DETALLES DE CONTRATO Y SEGURIDAD */}
+          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <Stack direction="row" spacing={1}>
+              <Chip 
+                label={employee.employeeType.toUpperCase()} 
+                size="small" 
+                sx={{ fontSize: '0.6rem', fontWeight: 900, height: 18 }} 
+              />
+              <Chip 
+                label={employee.payrollType} 
+                size="small" 
+                variant="outlined"
+                sx={{ fontSize: '0.6rem', fontWeight: 900, height: 18 }} 
+              />
+            </Stack>
+            
+            {employee.phone && (
+              <Tooltip title="Contactar por WhatsApp">
+                <IconButton 
+                  size="small" 
+                  onClick={handleWhatsApp}
+                  sx={{ 
+                    color: '#25D366', 
+                    bgcolor: 'rgba(37, 211, 102, 0.1)',
+                    '&:hover': { bgcolor: 'rgba(37, 211, 102, 0.2)' }
+                  }}
+                >
+                  <WhatsAppIcon fontSize="small" />
+                </IconButton>
+              </Tooltip>
+            )}
+          </Box>
+
+          {isBlacklisted && (
+            <Paper elevation={0} sx={{ p: 1, borderRadius: 2, bgcolor: 'rgba(244, 67, 54, 0.1)', border: '1px solid rgba(244, 67, 54, 0.2)' }}>
+              <Stack direction="row" spacing={1} alignItems="flex-start">
+                <GavelIcon sx={{ fontSize: 16, color: 'error.main', mt: 0.2 }} />
+                <Typography variant="caption" sx={{ color: 'error.main', fontWeight: 700, lineHeight: 1.2 }}>
+                  RESTRICCIÓN: {employee.blacklistReason || 'Sin motivo especificado'}
+                </Typography>
+              </Stack>
+            </Paper>
+          )}
         </Stack>
-
-        <Divider sx={{ my: 2.5, opacity: 0.1 }} />
-
-        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <Tooltip title={employee.documentacion_completa ? "Documentación Completa" : "Documentación Incompleta"}>
-            <Chip 
-              size="small"
-              icon={employee.documentacion_completa ? <VerifiedUserIcon /> : <WarningAmberIcon />}
-              label={employee.documentacion_completa ? "VERIFICADO" : "PENDIENTE"}
-              color={employee.documentacion_completa ? "success" : "error"}
-              variant="outlined"
-              sx={{ fontWeight: 900, fontSize: '0.65rem', borderRadius: 1.5 }}
-            />
-          </Tooltip>
-          
-          <Chip 
-            label={employee.payrollType.toUpperCase()} 
-            size="small" 
-            sx={{ fontWeight: 'bold', fontSize: '0.65rem', bgcolor: 'rgba(255,255,255,0.05)' }} 
-          />
-        </Box>
       </CardContent>
 
-      {/* Botones de Acción (Flotantes a la derecha) */}
-      <Box 
-        className="action-buttons"
-        sx={{ 
-          position: 'absolute', top: 12, right: 12, 
-          display: 'flex', flexDirection: 'column', gap: 1,
-          opacity: 0, transform: 'translateX(10px)',
-          transition: 'all 0.3s ease',
-          zIndex: 2
-        }}
-      >
-        <Tooltip title="Editar" placement="left">
-          <IconButton 
-            size="small" 
-            onClick={(e) => { e.stopPropagation(); onEdit(employee); }}
-            sx={{ bgcolor: 'background.paper', boxShadow: 2, '&:hover': { bgcolor: 'primary.main', color: 'white' } }}
-          >
-            <EditIcon fontSize="small" />
-          </IconButton>
-        </Tooltip>
-        <Tooltip title="Eliminar" placement="left">
-          <IconButton 
-            size="small" 
-            onClick={(e) => { e.stopPropagation(); onDelete(employee.id); }}
-            sx={{ bgcolor: 'background.paper', boxShadow: 2, '&:hover': { bgcolor: 'error.main', color: 'white' } }}
-          >
-            <DeleteIcon fontSize="small" />
-          </IconButton>
-        </Tooltip>
-      </Box>
+      <Divider sx={{ opacity: 0.05 }} />
 
-      {employee.isBlacklisted && (
-        <Box sx={{ 
-          position: 'absolute', bottom: 0, width: '100%', 
-          bgcolor: 'error.main', color: 'white', 
-          py: 0.5, textAlign: 'center', fontSize: '0.7rem', fontWeight: 'bold'
-        }}>
-          LISTA NEGRA
-        </Box>
-      )}
+      {/* ACCIONES */}
+      <Box sx={{ p: 1, display: 'flex', justifyContent: 'flex-end', gap: 1, bgcolor: 'rgba(0,0,0,0.01)' }}>
+        <IconButton size="small" onClick={() => onEdit(employee)} color="primary" sx={{ bgcolor: 'rgba(255, 87, 34, 0.05)' }}>
+          <EditIcon fontSize="small" />
+        </IconButton>
+        <IconButton size="small" onClick={() => onDelete(employee.id)} color="error" sx={{ bgcolor: 'rgba(244, 67, 54, 0.05)' }}>
+          <DeleteIcon fontSize="small" />
+        </IconButton>
+      </Box>
     </Card>
   );
 }

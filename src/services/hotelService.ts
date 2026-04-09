@@ -19,12 +19,16 @@ export const hotelService = {
       
       return hotels.map(h => ({
         id: h.id,
+        hotelCode: h.hotel_code || 'S/C',
         name: h.name,
         city: h.city,
         address: h.address || '',
-        latitude: h.latitude || undefined,
-        longitude: h.longitude || undefined,
-        imageUrl: h.image_url || undefined,
+        managerName: h.manager_name || '',
+        phone: h.phone || '',
+        email: h.email || '',
+        latitude: h.latitude || null,
+        longitude: h.longitude || null,
+        imageUrl: h.image_url || null,
         zone: (h.zone as 'Centro' | 'Norte' | 'Noroeste') || 'Centro'
       }));
     } catch (error: any) {
@@ -37,10 +41,20 @@ export const hotelService = {
   async create(hotel: Partial<Hotel>): Promise<void> {
     try {
       const client = this.getClient();
+      
+      // Lógica de Generación de Código Operativo (Ej: HOT26-123)
+      const year = new Date().getFullYear().toString().slice(-2);
+      const random = Math.floor(Math.random() * 1000).toString().padStart(3, '0');
+      const generatedCode = `HOT${year}-${random}`;
+
       await client.models.Hotel.create({
+        hotel_code: generatedCode,
         name: hotel.name || 'Nuevo Hotel',
         city: hotel.city || 'Ciudad',
         address: hotel.address,
+        manager_name: hotel.managerName,
+        phone: hotel.phone,
+        email: hotel.email,
         latitude: hotel.latitude,
         longitude: hotel.longitude,
         image_url: hotel.imageUrl,
@@ -60,6 +74,9 @@ export const hotelService = {
         name: updates.name,
         city: updates.city,
         address: updates.address,
+        manager_name: updates.managerName,
+        phone: updates.phone,
+        email: updates.email,
         latitude: updates.latitude,
         longitude: updates.longitude,
         image_url: updates.imageUrl,

@@ -1,14 +1,17 @@
 import { useState, useMemo, useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { Box, Typography, Button, Stack, Toolbar, ToggleButtonGroup, ToggleButton, Paper } from '@mui/material';
+import { Box, Typography, Button, Stack, ToggleButtonGroup, ToggleButton, Paper, Divider, useTheme } from '@mui/material';
 import SaveAltIcon from '@mui/icons-material/SaveAlt';
 import SearchIcon from '@mui/icons-material/Search';
 import ViewListIcon from '@mui/icons-material/ViewList';
 import ViewModuleIcon from '@mui/icons-material/ViewModule';
+import PeopleIcon from '@mui/icons-material/People';
+import AddIcon from '@mui/icons-material/Add';
+
 import { useEmployees } from '../hooks/useEmployees';
 import { useHotels } from '../hooks/useHotels';
 import { useAuth } from '../hooks/useAuth';
-import type { Employee, Hotel } from '../types';
+import type { Employee } from '../types';
 import FormModal from '../components/form/FormModal';
 import EmployeeForm from '../components/employees/EmployeeForm';
 import EmptyState from '../components/EmptyState';
@@ -17,10 +20,11 @@ import { exportEmployeesToExcel } from '../utils/exportUtils';
 import EmployeeFilters from '../components/employees/EmployeeFilters';
 import EmployeeGrid from '../components/employees/EmployeeGrid';
 import EmployeeTable from '../components/employees/EmployeeTable';
-import BulkImportButton from '../components/common/BulkImportButton';
 
 export default function EmployeesPage() {
-  const { employees, addEmployee, updateEmployee, deleteEmployee, toggleEmployeeBlacklist } = useEmployees();
+  const theme = useTheme();
+  const isLight = theme.palette.mode === 'light';
+  const { employees, addEmployee, updateEmployee, deleteEmployee, toggleEmployeeBlacklist, roles } = useEmployees();
   const { hotels } = useHotels();
   const { profile } = useAuth();
   
@@ -28,14 +32,13 @@ export default function EmployeesPage() {
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState('active');
   
-  // Si es INSPECTOR, forzamos su zona. Si no tiene zona (fallback), le damos una por defecto para no ver 'all'
   const initialZone = profile?.role === 'INSPECTOR' 
     ? (profile.assigned_zone || 'Centro') 
     : 'all';
     
   const [zoneFilter, setZoneFilter] = useState(initialZone);
   const [hotelFilter, setHotelFilter] = useState('');
-  const [viewMode, setViewMode] = useState('grid'); // 'grid' or 'table'
+  const [viewMode, setViewMode] = useState('grid'); 
 
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [currentEmployee, setCurrentEmployee] = useState<Partial<Employee>>({});
@@ -43,7 +46,6 @@ export default function EmployeesPage() {
   const [isConfirmOpen, setIsConfirmOpen] = useState(false);
   const [employeeToDelete, setEmployeeToDelete] = useState<string | null>(null);
 
-  // Efecto para asegurar que si el perfil cambia, la zona se mantenga filtrada
   useEffect(() => {
     if (profile?.role === 'INSPECTOR') {
       setZoneFilter(profile.assigned_zone || 'Centro');
@@ -54,38 +56,25 @@ export default function EmployeesPage() {
     const documentationFilter = searchParams.get('documentation');
 
     return employees.filter(employee => {
-      // Documentation Filter
-      if (documentationFilter === 'incomplete' && employee.documentacion_completa) {
-        return false;
-      }
-
-      // Status Filter
+      if (documentationFilter === 'incomplete' && employee.documentacion_completa) return false;
       if (statusFilter === 'active' && (!employee.isActive || employee.isBlacklisted)) return false;
       if (statusFilter === 'inactive' && (employee.isActive || employee.isBlacklisted)) return false;
       if (statusFilter === 'blacklisted' && !employee.isBlacklisted) return false;
+      if (!employee.name.toLowerCase().includes(searchQuery.toLowerCase())) return false;
       
-      // Search Query Filter
-      if (!employee.name.toLowerCase().includes(searchQuery.toLowerCase())) {
-        return false;
-      }
-
-      // Zone Filter
       if (zoneFilter !== 'all') {
         const hotel = hotels.find(h => h.id === employee.hotelId);
         if (hotel?.zone !== zoneFilter) return false;
       }
 
-      // Hotel Filter
-      if (hotelFilter && employee.hotelId !== hotelFilter) {
-        return false;
-      }
+      if (hotelFilter && employee.hotelId !== hotelFilter) return false;
 
       return true;
     });
   }, [employees, statusFilter, searchQuery, hotelFilter, searchParams, zoneFilter, hotels]);
 
   const handleOpenAddModal = () => {
-    setCurrentEmployee({ isActive: true, isBlacklisted: false, payrollType: 'timesheet' });
+    setCurrentEmployee({ isActive: true, isBlacklisted: false, payrollType: 'timesheet', employeeType: 'permanente' });
     setIsModalOpen(true);
   };
 
@@ -137,59 +126,46 @@ export default function EmployeesPage() {
     }
   };
 
-  const modalTitle = currentEmployee.id ? "Editar Empleado" : "Añadir Nuevo Empleado";
-
-  const handleEmployeeImport = async (parsedData: Partial<Employee>[]) => {
-    let successCount = 0;
-    let errorCount = 0;
-
-    for (const item of parsedData) {
-      if (item.name && item.hotelId && item.role && item.payrollType) {
-        addEmployee({
-          name: item.name,
-          hotelId: item.hotelId,
-          role: item.role,
-          payrollType: item.payrollType,
-          isActive: true,
-          isBlacklisted: false,
-        });
-        successCount++;
-      } else {
-        errorCount++;
-      }
-    }
-
-    return { successCount, errorCount };
-  };
-
   return (
-    <Box component="main" sx={{ p: 1 }}>
-      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2, flexWrap: 'wrap', gap: 2 }}>
-        <Typography variant="h4">Gestión de Empleados</Typography>
+    <Box component="main" sx={{ p: 2 }}>
+      {/* ENCABEZADO PROFESIONAL */}
+      <Paper 
+        elevation={0} 
+        sx={{ 
+          p: 3, mb: 3, borderRadius: 3, 
+          background: 'linear-gradient(135deg, rgba(255, 87, 34, 0.05) 0%, rgba(255, 255, 255, 0.02) 100%)',
+          border: '1px solid rgba(255, 87, 34, 0.1)',
+          display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 2 
+        }}
+      >
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+          <Box sx={{ backgroundColor: 'primary.main', p: 1, borderRadius: 2, display: 'flex', boxShadow: '0 4px 12px rgba(255, 87, 34, 0.3)' }}>
+            <PeopleIcon sx={{ color: 'white' }} />
+          </Box>
+          <Box>
+            <Typography variant="h4" sx={{ fontWeight: 900, letterSpacing: '-0.5px' }}>Personal</Typography>
+            <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 600, textTransform: 'uppercase' }}>Gestión de Capital Humano - AWS Cloud</Typography>
+          </Box>
+        </Box>
+
         <Stack direction="row" spacing={2}>
-          <BulkImportButton<Partial<Employee>>
-            buttonText="Importar Empleados (CSV)"
-            requiredHeaders={['name', 'hotelId', 'role', 'payrollType']}
-            onDataParsed={handleEmployeeImport}
-          />
-          <Button variant="outlined" startIcon={<SaveAltIcon />} onClick={() => exportEmployeesToExcel(filteredEmployees, hotels)}>
-            Exportar a Excel
+          <Button variant="outlined" startIcon={<SaveAltIcon />} onClick={() => exportEmployeesToExcel(filteredEmployees, hotels)} sx={{ borderRadius: 2, fontWeight: 'bold' }}>
+            Exportar Excel
           </Button>
           <Button
             variant="contained"
-            color="primary"
+            startIcon={<AddIcon />}
             onClick={handleOpenAddModal}
             sx={{
-              transition: 'box-shadow 0.3s ease-in-out',
-              '&:hover': {
-                boxShadow: `0 0 8px 2px #FF5722`,
-              }
+              borderRadius: 2, px: 3, fontWeight: 'bold',
+              background: 'linear-gradient(45deg, #FF5722 30%, #FF8A65 90%)',
+              boxShadow: '0 4px 14px 0 rgba(255, 87, 34, 0.39)',
             }}
           >
             Añadir Empleado
           </Button>
         </Stack>
-      </Box>
+      </Paper>
 
       <EmployeeFilters 
         searchQuery={searchQuery}
@@ -207,54 +183,26 @@ export default function EmployeesPage() {
       />
 
       <Box sx={{ display: 'flex', justifyContent: 'flex-end', mb: 2 }}>
-        <ToggleButtonGroup value={viewMode} exclusive onChange={handleViewChange}>
-          <ToggleButton value="grid" aria-label="grid view">
-            <ViewModuleIcon />
-          </ToggleButton>
-          <ToggleButton value="table" aria-label="table view">
-            <ViewListIcon />
-          </ToggleButton>
+        <ToggleButtonGroup value={viewMode} exclusive onChange={handleViewChange} size="small">
+          <ToggleButton value="grid" aria-label="grid view"><ViewModuleIcon fontSize="small" /></ToggleButton>
+          <ToggleButton value="table" aria-label="table view"><ViewListIcon fontSize="small" /></ToggleButton>
         </ToggleButtonGroup>
       </Box>
 
       {filteredEmployees.length > 0 ? (
         viewMode === 'grid' ? (
-          <EmployeeGrid 
-            employees={filteredEmployees} 
-            hotels={hotels} 
-            onEdit={handleOpenEditModal} 
-            onDelete={handleDeleteRequest} 
-          />
+          <EmployeeGrid employees={filteredEmployees} hotels={hotels} onEdit={handleOpenEditModal} onDelete={handleDeleteRequest} />
         ) : (
-          <EmployeeTable 
-            employees={filteredEmployees} 
-            hotels={hotels} 
-            onEdit={handleOpenEditModal} 
-            onDelete={handleDeleteRequest} 
-          />
+          <EmployeeTable employees={filteredEmployees} hotels={hotels} onEdit={handleOpenEditModal} onDelete={handleDeleteRequest} />
         )
       ) : (
-        <Paper sx={{ mt: 2 }}>
-          <EmptyState 
-            icon={<SearchIcon />}
-            title="No se encontraron empleados"
-            subtitle="Intenta cambiar los filtros o el término de búsqueda."
-          />
+        <Paper sx={{ mt: 2, borderRadius: 4 }}>
+          <EmptyState icon={<SearchIcon />} title="No se encontraron empleados" subtitle="Intenta cambiar los filtros o el término de búsqueda." />
         </Paper>
       )}
 
-      <FormModal
-        open={isModalOpen}
-        onClose={handleCloseModal}
-        onSave={handleSave}
-        title={modalTitle}
-      >
-        <EmployeeForm
-          employeeData={currentEmployee}
-          onFormChange={handleFormChange}
-          hotels={hotels}
-          onToggleBlacklist={handleToggleBlacklist}
-        />
+      <FormModal open={isModalOpen} onClose={handleCloseModal} onSave={handleSave} title={currentEmployee.id ? "Editar Empleado" : "Añadir Nuevo Empleado"}>
+        <EmployeeForm employeeData={currentEmployee} onFormChange={handleFormChange} hotels={hotels} roles={roles} onToggleBlacklist={handleToggleBlacklist} />
       </FormModal>
 
       <ConfirmationDialog

@@ -6,9 +6,13 @@ import { a, defineData, type ClientSchema } from '@aws-amplify/backend';
 const schema = a.schema({
   Hotel: a.model({
     id: a.id(),
+    hotel_code: a.string(),
     name: a.string().required(),
     city: a.string().required(),
     address: a.string(),
+    manager_name: a.string(),
+    phone: a.string(),
+    email: a.string(),
     latitude: a.float(),
     longitude: a.float(),
     image_url: a.string(),
@@ -23,7 +27,10 @@ const schema = a.schema({
     is_active: a.boolean(),
     role: a.string().required(),
     employee_type: a.string(),
+    phone: a.string(),
+    email: a.string(),
     is_blacklisted: a.boolean(),
+    blacklist_reason: a.string(),
     payroll_type: a.string(),
     last_reviewed_timestamp: a.datetime(),
     documentacion_completa: a.boolean(),
@@ -102,6 +109,13 @@ const schema = a.schema({
     old_is_active: a.boolean(),
     new_is_active: a.boolean(),
     reason: a.string(),
+  }).authorization((allow) => [allow.authenticated()]),
+
+  Position: a.model({
+    id: a.id(),
+    name: a.string().required(),
+    description: a.string(),
+    is_active: a.boolean().default(true),
   }).authorization((allow) => [allow.authenticated()]),
 });
 

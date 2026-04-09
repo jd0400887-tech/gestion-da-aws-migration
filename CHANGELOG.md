@@ -2,6 +2,27 @@
 
 Todos los cambios notables en este proyecto serán documentados en este archivo.
 
+## [0.5.0] - 2026-04-08 (Sesión 5 - Migración 100% AWS Native & Despliegue RDS)
+
+### Añadido
+- **Esquema RDS Completo:** Implementación de modelos avanzados en AWS Amplify Gen 2: `AttendanceRecord`, `QAAudit`, `Candidate`, `Application`, `EmployeeStatusChange` y `Profile`.
+- **Gestión de Accesos en RDS:** Nueva página de Usuarios (`UsersPage.tsx`) que sincroniza roles (ADMIN, RECRUITER, INSPECTOR) directamente con la base de datos de Virginia.
+- **Historial de Estados:** Implementación de la tabla `EmployeeStatusChange` para rastrear activaciones/desactivaciones de personal con motivos.
+- **Módulo de Calidad AWS:** Migración total de `QAPage.tsx` y cálculos de score de excelencia operativa a AWS RDS.
+
+### Cambiado
+- **Servicios 100% AWS:** Actualización masiva de `hotelService`, `employeeService` y `staffingService` para usar exclusivamente el cliente de Amplify con mapeo `snake_case` (RDS) a `camelCase` (App).
+- **Hooks de Negocio:** Refactorización total de `useAttendance`, `useApplications`, `usePayrollHistory`, `useAdoptionStats` y `useReportData` para eliminar cualquier rastro de Supabase.
+- **Optimización de Interfaz:** Reestructuración visual en `MainLayout` y `index.css` para eliminar el fondo negro total y mejorar la visibilidad del menú lateral en escritorio.
+- **Flujo de Autenticación:** Simplificación de `App.tsx` y `ProtectedRoute.tsx` para garantizar el renderizado inmediato tras el login de AWS Cognito.
+
+### Técnico
+- **Eliminación de Supabase:** Borrado físico de `src/utils/supabase.ts` y desinstalación de la dependencia `@supabase/supabase-js`. El proyecto es ahora 100% Native AWS.
+- **Sincronización Cloud:** Resolución del error de nombres alfanuméricos en CloudFormation (`QA_Audit` -> `QAAudit`) y despliegue exitoso mediante `ampx sandbox`.
+- **Preparación de Despliegue:** Commit y Push final a GitHub (`master`) sincronizado con el Stack de Virginia.
+
+---
+
 ## [0.4.0] - 2026-04-03 (Sesión 4 - Consolidación AWS Cloud & Estabilidad Total)
 
 ### Añadido

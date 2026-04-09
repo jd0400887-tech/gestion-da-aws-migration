@@ -1,8 +1,12 @@
 export interface Hotel {
   id: string;
+  hotelCode?: string;
   name: string;
   city: string;
   address: string;
+  managerName?: string;
+  phone?: string;
+  email?: string;
   latitude: number | null;
   longitude: number | null;
   imageUrl: string | null;
@@ -32,19 +36,20 @@ export interface EmployeeAssignment {
 }
 
 export interface Employee {
-  id: string; // Internal unique ID
-  employeeNumber: string; // User-facing employee number
+  id: string; 
+  employeeNumber: string;
   name: string;
-  hotelId: string; // Current hotel assignment
+  hotelId: string;
   isActive: boolean;
   role: string;
   employeeType: 'permanente' | 'temporal';
+  phone?: string;
+  email?: string;
   isBlacklisted: boolean;
+  blacklistReason?: string;
   payrollType: 'timesheet' | 'Workrecord';
   lastReviewedTimestamp: string | null;
-  overtime?: number;
   documentacion_completa: boolean;
-  assignments?: EmployeeAssignment[]; // History of rotations
 }
 
 export interface AttendanceRecord {
