@@ -2,11 +2,13 @@ import { useState, useEffect, useCallback } from 'react';
 import { generateClient } from 'aws-amplify/api';
 import type { Schema } from '../../amplify/data/resource';
 import type { RequestCandidate } from '../types';
+import { staffingService } from '../services/staffingService';
 
 /**
  * SERVICIO DE CANDIDATOS PARA SOLICITUDES (AWS RDS)
+ * Filtra candidatos y registra logs en el historial de la solicitud.
  */
-export const useRequestCandidates = (requestId: string | null) => {
+export const useRequestCandidates = (requestId: string | null, userName: string = 'Sistema') => {
   const [candidates, setCandidates] = useState<RequestCandidate[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -19,19 +21,26 @@ export const useRequestCandidates = (requestId: string | null) => {
     setLoading(true);
     try {
       const client = generateClient<Schema>();
-      // Filtramos candidatos por ID de solicitud en RDS
-      const { data } = await client.models.Candidate.list();
-      // Nota: En una implementación real con RDS usaríamos un filtro en el list()
-      // si la relación está bien definida, o filtraríamos manualmente por ahora.
-      const filtered = data.filter(c => c.status !== 'Eliminado'); // Placeholder del filtro real
-      
-      setCandidates(filtered.map(c => ({
-        id: c.id as any,
-        request_id: requestId as any,
-        candidate_name: c.name,
-        status: (c.status as any) || 'Asignado',
-        created_at: c.createdAt || new Date().toISOString()
-      })));
+      const { data: apps } = await client.models.Application.list({
+        filter: { request_id: { eq: requestId } }
+      });
+
+      const { data: allCandidates } = await client.models.Candidate.list();
+      const { data: allEmployees } = await client.models.Employee.list();
+
+      const mapped = apps.map(app => {
+        const cand = allCandidates.find(c => c.id === app.candidate_id);
+        const emp = allEmployees.find(e => e.id === app.candidate_id);
+        return {
+          id: app.id as any,
+          request_id: requestId as any,
+          candidate_name: cand?.name || emp?.name || 'Candidato Desconocido',
+          status: (app.status as any) || 'Asignado',
+          created_at: app.applied_at,
+          existing_employee_id: emp ? emp.id : null
+        };
+      });
+      setCandidates(mapped);
     } catch (error) {
       console.error('Error fetching candidates from AWS:', error);
     }
@@ -45,11 +54,31 @@ export const useRequestCandidates = (requestId: string | null) => {
   const addCandidate = async (newCandidate: Omit<RequestCandidate, 'id' | 'status'>) => {
     try {
       const client = generateClient<Schema>();
-      await client.models.Candidate.create({
-        name: newCandidate.candidate_name,
-        role: 'Candidato',
-        status: 'Asignado'
+      let candidateId = newCandidate.existing_employee_id;
+      let nameForLog = newCandidate.candidate_name;
+
+      if (!candidateId) {
+        const { data: cand } = await client.models.Candidate.create({
+          name: newCandidate.candidate_name || 'Nuevo Candidato',
+          role: 'Externo',
+          status: 'Activo'
+        });
+        candidateId = cand?.id || '';
+      } else {
+        const emp = (await client.models.Employee.get({ id: candidateId })).data;
+        nameForLog = emp?.name || 'Empleado';
+      }
+
+      await client.models.Application.create({
+        candidate_id: candidateId,
+        request_id: String(requestId),
+        status: 'Asignado',
+        applied_at: new Date().toISOString()
       });
+
+      // REGISTRAR EN HISTORIAL
+      await staffingService.addHistory(String(requestId), `Candidato asignado: ${nameForLog}`, userName);
+
       await fetchCandidates();
     } catch (error) {
       console.error('Error adding candidate to AWS:', error);
@@ -57,33 +86,37 @@ export const useRequestCandidates = (requestId: string | null) => {
     }
   };
 
-  const updateCandidateStatus = async (candidateId: string, newStatus: RequestCandidate['status']) => {
+  const updateCandidateStatus = async (applicationId: string, newStatus: string) => {
     try {
       const client = generateClient<Schema>();
-      await client.models.Candidate.update({
-        id: String(candidateId),
+      
+      // Obtener nombre para el log
+      const current = candidates.find(c => String(c.id) === applicationId);
+      
+      await client.models.Application.update({
+        id: applicationId,
         status: newStatus
       });
 
-      if (newStatus === 'Llegó') {
-        // Lógica para crear aplicación automáticamente
-        await client.models.Application.create({
-          candidate_id: String(candidateId),
-          request_id: requestId || 'unknown',
-          status: 'pendiente',
-          applied_at: new Date().toISOString()
-        });
-      }
+      // REGISTRAR EN HISTORIAL
+      await staffingService.addHistory(String(requestId), `Seguimiento: ${current?.candidate_name} cambió a estado ${newStatus}`, userName);
+
       await fetchCandidates();
     } catch (error) {
       console.error('Error updating status in AWS:', error);
     }
   };
 
-  const deleteCandidate = async (candidateId: string) => {
+  const deleteCandidate = async (applicationId: string) => {
     try {
       const client = generateClient<Schema>();
-      await client.models.Candidate.delete({ id: String(candidateId) });
+      const current = candidates.find(c => String(c.id) === applicationId);
+
+      await client.models.Application.delete({ id: applicationId });
+
+      // REGISTRAR EN HISTORIAL
+      await staffingService.addHistory(String(requestId), `Candidato removido: ${current?.candidate_name}`, userName);
+
       await fetchCandidates();
     } catch (error) {
       console.error('Error deleting candidate in AWS:', error);

@@ -1,14 +1,14 @@
-
 import { useDroppable } from '@dnd-kit/core';
 import { SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable';
 import { Box, Typography, Paper, useTheme } from '@mui/material';
 import RequestCard from './RequestCard';
-import type { StaffingRequest } from '../../types';
+import type { StaffingRequest, Hotel } from '../../types';
 
 interface KanbanColumnProps {
   id: string;
   title: string;
   requests: StaffingRequest[];
+  hotels: Hotel[]; // Añadimos la prop de hoteles
   bgColor?: string;
   textColor?: string;
   onEditRequest: (request: StaffingRequest) => void;
@@ -16,7 +16,9 @@ interface KanbanColumnProps {
   onDeleteRequest?: (id: number) => void;
 }
 
-export default function KanbanColumn({ id, title, requests, bgColor, textColor = '#FFFFFF', onEditRequest, onArchiveRequest, onDeleteRequest }: KanbanColumnProps) {
+export default function KanbanColumn({ 
+  id, title, requests, hotels, onEditRequest, onArchiveRequest, onDeleteRequest 
+}: KanbanColumnProps) {
   const { setNodeRef, isOver } = useDroppable({ id });
   const theme = useTheme();
   const isLight = theme.palette.mode === 'light';
@@ -26,13 +28,10 @@ export default function KanbanColumn({ id, title, requests, bgColor, textColor =
       height: '100%',
       p: 1.5,
       borderRadius: '16px',
-      backgroundColor: isLight ? '#F1F5F9' : 'rgba(0, 0, 0, 0.2)', // Slate 100 in light mode
-      backdropFilter: isLight ? 'none' : 'blur(10px)',
+      backgroundColor: isLight ? '#F1F5F9' : 'rgba(0, 0, 0, 0.2)',
       border: '1px solid',
       borderColor: isOver ? '#00BCD4' : (isLight ? '#E2E8F0' : 'rgba(255, 87, 34, 0.3)'),
-      boxShadow: isOver 
-        ? '0 0 8px #00BCD4' 
-        : (isLight ? 'none' : '0 0 5px #FF5722'),
+      boxShadow: isOver ? '0 0 8px #00BCD4' : 'none',
       transition: 'all 0.2s ease-in-out',
       minWidth: '280px'
     }}>
@@ -51,41 +50,36 @@ export default function KanbanColumn({ id, title, requests, bgColor, textColor =
         {title} 
         <Box component="span" sx={{ 
           backgroundColor: isLight ? '#CBD5E1' : 'rgba(255,255,255,0.1)', 
-          px: 1, 
-          py: 0.2, 
-          borderRadius: '10px', 
-          fontSize: '0.7rem',
-          color: isLight ? '#1E293B' : '#FFF'
+          px: 1, py: 0.2, borderRadius: '10px', fontSize: '0.7rem'
         }}>
           {requests.length}
         </Box>
       </Typography>
+
       <SortableContext id={id} items={requests} strategy={verticalListSortingStrategy}>
         <Box ref={setNodeRef} sx={{ 
           minHeight: '200px', 
-          maxHeight: 'calc(100vh - 300px)',
+          maxHeight: 'calc(100vh - 350px)',
           overflowY: 'auto', 
-          p: 0.5,
-          '&::-webkit-scrollbar': {
-            width: '5px',
-          },
-          '&::-webkit-scrollbar-track': {
-            backgroundColor: 'transparent',
-          },
-          '&::-webkit-scrollbar-thumb': {
-            backgroundColor: isLight ? '#CBD5E1' : '#FF5722',
-            borderRadius: '10px',
-          },
+          p: 0.5
         }}>
-          {requests.map(request => (
-            <RequestCard 
-              key={request.id} 
-              request={request} 
-              onEdit={() => onEditRequest(request)} 
-              onArchive={['Completada', 'Completada Parcialmente', 'Candidato No Presentado', 'Cancelada por Hotel', 'Vencida'].includes(id) ? () => onArchiveRequest(request.id) : undefined} 
-              onDelete={onDeleteRequest ? () => onDeleteRequest(request.id) : undefined}
-            />
-          ))}
+          {requests.map(request => {
+            // Enriquecemos la solicitud con el nombre del hotel antes de pasarla a la tarjeta
+            const hotel = hotels.find(h => h.id === request.hotel_id);
+            const enrichedRequest = {
+              ...request,
+              hotelName: hotel ? hotel.name : 'Hotel no encontrado'
+            };
+
+            return (
+              <RequestCard 
+                key={request.id} 
+                request={enrichedRequest} 
+                onEdit={onEditRequest} 
+                onArchive={onArchiveRequest} // Pasar la función a la tarjeta
+              />
+            );
+          })}
         </Box>
       </SortableContext>
     </Paper>

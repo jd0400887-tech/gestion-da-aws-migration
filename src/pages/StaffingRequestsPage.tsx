@@ -391,10 +391,11 @@ export default function StaffingRequestsPage() {
                     id={status} 
                     title={status} 
                     requests={requestsByStatus[status] || []} 
+                    hotels={hotels}
                     bgColor={statusColors[status].bg} 
                     textColor={statusColors[status].text} 
                     onEditRequest={handleOpenDialog} 
-                    onArchiveRequest={archiveRequest} 
+                    onArchiveRequest={archiveRequest} // Conexión activada
                     onDeleteRequest={profile?.role === 'ADMIN' ? handleDeleteRequest : undefined}
                   />
                 </Grid>

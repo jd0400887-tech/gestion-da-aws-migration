@@ -1,15 +1,18 @@
-import { createContext, useContext, ReactNode } from 'react';
+import { createContext, useContext, ReactNode, useEffect } from 'react';
 import { useStaffingRequests } from '../hooks/useStaffingRequests';
 
 // Infer the return type of the hook
 type StaffingRequestsHookType = ReturnType<typeof useStaffingRequests>;
 
-// Create the context with a default undefined value
 const StaffingRequestsContext = createContext<StaffingRequestsHookType | undefined>(undefined);
 
-// Define the provider component
 export const StaffingRequestsProvider = ({ children }: { children: ReactNode }) => {
   const staffingRequests = useStaffingRequests();
+
+  // Aseguramos que al montar el proveedor se sincronicen los datos
+  useEffect(() => {
+    staffingRequests.fetchRequests();
+  }, []);
 
   return (
     <StaffingRequestsContext.Provider value={staffingRequests}>
@@ -18,7 +21,6 @@ export const StaffingRequestsProvider = ({ children }: { children: ReactNode }) 
   );
 };
 
-// Custom hook to use the context
 export const useStaffingRequestsContext = () => {
   const context = useContext(StaffingRequestsContext);
   if (context === undefined) {

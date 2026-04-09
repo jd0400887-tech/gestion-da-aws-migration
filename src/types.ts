@@ -68,6 +68,8 @@ export interface StaffingRequest {
   request_type: 'permanente' | 'temporal';
   num_of_people: number;
   role: string;
+  priority: 'Baja' | 'Normal' | 'Alta' | 'Crítica';
+  shift_time?: string;
   start_date: string;
   status: 'Pendiente' | 'Enviada a Reclutamiento' | 'En Proceso' | 'Completada' | 'Completada Parcialmente' | 'Cancelada por Hotel' | 'Candidato No Presentado' | 'Vencida';
   completed_at?: string | null;

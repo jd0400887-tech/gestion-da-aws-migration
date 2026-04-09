@@ -2,6 +2,29 @@
 
 Todos los cambios notables en este proyecto serán documentados en este archivo.
 
+## [0.6.0] - 2026-04-08 (Sesión 6 - Pulido Professional & Estabilidad S3)
+
+### Añadido
+- **Gestión Inteligente S3:** Nuevo componente `S3Image.tsx` que resuelve automáticamente URLs caducadas, eliminando errores 403.
+- **Identidad Corporativa:** Implementación de Códigos Operativos (`HOT26-XXX` y `SR26-XXX`) para Hoteles y Solicitudes.
+- **Cargos Dinámicos:** Migración de cargos de personal a una tabla de AWS RDS gestionable por el Admin.
+- **Seguridad Blacklist:** Sistema de restricción con motivo obligatorio y alertas visuales en rojo.
+- **Métricas Kanban:** Barra de progreso real en tarjetas de solicitud basada en candidatos asignados.
+- **Campos de Contacto:** Inclusión de Gerente, Teléfono y Email en Hoteles y Personal.
+
+### Cambiado
+- **Rediseño Premium:** Reestructuración de la Página de Detalles de Hotel con banner hero, barra de contacto flotante y mapa reactivo.
+- **UX de Solicitudes:** Formulario de solicitudes organizado por secciones (Ubicación, Perfil, Logística) con soporte para Prioridad y Horarios.
+- **Filtros Avanzados:** Nueva barra de filtros en Personal con detección de documentos pendientes y limpieza rápida.
+- **Reglas de Staffing:** Bloqueo automático de asignación para personal en Lista Negra o con plaza fija duplicada.
+
+### Corregido
+- **Consola Limpia:** Eliminación de errores de nidificación HTML (h2/h5) y advertencias de componentes controlados/no controlados en MUI.
+- **Sincronización:** Refuerzo de `staffingService.ts` para incluir todos los campos operativos en la actualización hacia AWS RDS.
+- **Formateo Global:** Implementación de `toTitleCase` global para asegurar consistencia en nombres y direcciones.
+
+---
+
 ## [0.5.0] - 2026-04-08 (Sesión 5 - Migración 100% AWS Native & Despliegue RDS)
 
 ### Añadido

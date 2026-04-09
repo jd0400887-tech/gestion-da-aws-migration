@@ -43,6 +43,8 @@ const schema = a.schema({
     request_type: a.string(),
     num_of_people: a.integer(),
     role: a.string(),
+    priority: a.string(), // Cambiado de enum a string para evitar errores de validación estrictos
+    shift_time: a.string(),
     start_date: a.string(),
     status: a.string(),
     notes: a.string(),
@@ -116,6 +118,14 @@ const schema = a.schema({
     name: a.string().required(),
     description: a.string(),
     is_active: a.boolean().default(true),
+  }).authorization((allow) => [allow.authenticated()]),
+
+  StaffingRequestHistory: a.model({
+    id: a.id(),
+    request_id: a.string().required(),
+    change_description: a.string().required(),
+    changed_by: a.string(),
+    created_at: a.datetime(),
   }).authorization((allow) => [allow.authenticated()]),
 });
 

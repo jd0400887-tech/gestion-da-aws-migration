@@ -14,18 +14,23 @@ export const staffingService = {
   async getAll(): Promise<StaffingRequest[]> {
     try {
       const client = this.getClient();
-      console.info('📡 [AWS] Consultando solicitudes en RDS PostgreSQL...');
-      const { data: requests } = await client.models.StaffingRequest.list();
+      const { data: requests, errors } = await client.models.StaffingRequest.list();
       
+      if (errors) {
+        console.warn('⚠️ [AWS] Avisos al listar solicitudes:', errors);
+      }
+
       return requests.map(r => ({
         id: r.id as any,
         request_number: r.request_number,
         created_at: r.createdAt || new Date().toISOString(),
-        hotel_id: r.hotel_id,
-        request_type: (r.request_type as 'permanente' | 'temporal') || 'permanente',
-        num_of_people: r.num_of_people || 1,
-        role: r.role,
-        start_date: r.start_date,
+        hotel_id: r.hotel_id || '',
+        request_type: (r.request_type as 'permanente' | 'temporal') || 'temporal',
+        num_of_people: Number(r.num_of_people) || 1,
+        role: r.role || '',
+        priority: (r.priority as any) || 'Normal',
+        shift_time: r.shift_time || '',
+        start_date: r.start_date || new Date().toISOString().split('T')[0],
         status: (r.status as any) || 'Pendiente',
         notes: r.notes || '',
         candidate_count: 0
@@ -37,39 +42,69 @@ export const staffingService = {
     }
   },
 
-  async create(request: Omit<StaffingRequest, 'id' | 'created_at' | 'hotelName' | 'request_number'>): Promise<void> {
+  async create(request: Omit<StaffingRequest, 'id' | 'created_at' | 'hotelName' | 'request_number'>, userName: string = 'Sistema'): Promise<string> {
     try {
       const client = this.getClient();
       const currentYear = new Date().getFullYear().toString().slice(-2);
-      const request_number = `SR${currentYear}-${Math.floor(Math.random() * 1000).toString().padStart(3, '0')}`;
+      const randomPart = Math.floor(Math.random() * 1000).toString().padStart(3, '0');
+      const request_number = `SR${currentYear}-${randomPart}`;
 
-      await client.models.StaffingRequest.create({
+      const { data: newReq, errors } = await client.models.StaffingRequest.create({
         request_number,
         hotel_id: request.hotel_id,
-        request_type: request.request_type,
-        num_of_people: request.num_of_people,
-        role: request.role,
+        request_type: request.request_type || 'temporal',
+        num_of_people: Math.max(1, Number(request.num_of_people)),
+        role: request.role || 'Sin cargo',
+        priority: request.priority || 'Normal',
+        shift_time: request.shift_time || '',
         start_date: request.start_date,
         status: 'Pendiente',
-        notes: request.notes
+        notes: request.notes || ''
       });
-    } catch (error) {
-      console.error('❌ Error al crear solicitud en RDS:', error);
+
+      if (errors) throw new Error("AWS rechazó la creación.");
+
+      // REGISTRAR HISTORIAL INICIAL
+      await this.addHistory(newReq.id, `Solicitud creada en estado Pendiente`, userName);
+
+      return newReq.id;
+    } catch (error: any) {
+      console.error('❌ Error crítico en creación:', error.message);
       throw error;
     }
   },
 
-  async update(id: string, updates: Partial<StaffingRequest>): Promise<void> {
+  async update(id: string, updates: Partial<StaffingRequest>, userName: string = 'Sistema'): Promise<void> {
     try {
       const client = this.getClient();
-      await client.models.StaffingRequest.update({
-        id: String(id),
-        status: updates.status,
-        notes: updates.notes,
-        completed_at: updates.status === 'Completada' ? new Date().toISOString() : undefined
-      });
-    } catch (error) {
-      console.error('❌ Error al actualizar solicitud en RDS:', error);
+      
+      const input: any = { id: String(id) };
+      if (updates.hotel_id) input.hotel_id = updates.hotel_id;
+      if (updates.request_type) input.request_type = updates.request_type;
+      if (updates.num_of_people) input.num_of_people = Number(updates.num_of_people);
+      if (updates.role) input.role = updates.role;
+      if (updates.start_date) input.start_date = updates.start_date;
+      if (updates.status) {
+        input.status = updates.status;
+        if (updates.status === 'Completada') input.completed_at = new Date().toISOString();
+      }
+      if (updates.notes !== undefined) input.notes = updates.notes || '';
+      if (updates.priority) input.priority = updates.priority;
+      if (updates.shift_time !== undefined) input.shift_time = updates.shift_time || '';
+
+      const { errors } = await client.models.StaffingRequest.update(input);
+      if (errors) throw new Error("AWS rechazó la actualización.");
+
+      // REGISTRAR HISTORIAL DE CAMBIO
+      if (updates.status) {
+        await this.addHistory(id, `Estado cambiado a: ${updates.status}`, userName);
+      }
+      if (updates.role) {
+        await this.addHistory(id, `Cargo actualizado a: ${updates.role}`, userName);
+      }
+    } catch (error: any) {
+      console.error('❌ Error crítico en actualización:', error.message);
+      throw error;
     }
   },
 
@@ -78,7 +113,40 @@ export const staffingService = {
       const client = this.getClient();
       await client.models.StaffingRequest.delete({ id: String(id) });
     } catch (error) {
-      console.error('❌ Error al eliminar solicitud en RDS:', error);
+      console.error('❌ Error al eliminar en RDS:', error);
+    }
+  },
+
+  /**
+   * HISTORIAL: Guardar un evento
+   */
+  async addHistory(requestId: string, description: string, userName: string): Promise<void> {
+    try {
+      const client = this.getClient();
+      await client.models.StaffingRequestHistory.create({
+        request_id: requestId,
+        change_description: description,
+        changed_by: userName,
+        created_at: new Date().toISOString()
+      });
+    } catch (error) {
+      console.error('Error al registrar historial:', error);
+    }
+  },
+
+  /**
+   * HISTORIAL: Obtener eventos de una solicitud
+   */
+  async getHistory(requestId: string): Promise<any[]> {
+    try {
+      const client = this.getClient();
+      const { data } = await client.models.StaffingRequestHistory.list({
+        filter: { request_id: { eq: requestId } }
+      });
+      return data.sort((a, b) => new Date(b.created_at || 0).getTime() - new Date(a.created_at || 0).getTime());
+    } catch (error) {
+      console.error('Error al obtener historial de AWS:', error);
+      return [];
     }
   }
 };
