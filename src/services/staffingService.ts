@@ -79,13 +79,19 @@ export const staffingService = {
       const client = this.getClient();
       
       const input: any = { id: String(id) };
+      let changeLog: string[] = [];
+
       if (updates.hotel_id) input.hotel_id = updates.hotel_id;
       if (updates.request_type) input.request_type = updates.request_type;
       if (updates.num_of_people) input.num_of_people = Number(updates.num_of_people);
-      if (updates.role) input.role = updates.role;
+      if (updates.role) {
+        input.role = updates.role;
+        changeLog.push(`Cargo actualizado a: ${updates.role}`);
+      }
       if (updates.start_date) input.start_date = updates.start_date;
       if (updates.status) {
         input.status = updates.status;
+        changeLog.push(`Estado cambiado a: ${updates.status}`);
         if (updates.status === 'Completada') input.completed_at = new Date().toISOString();
       }
       if (updates.notes !== undefined) input.notes = updates.notes || '';
@@ -95,12 +101,11 @@ export const staffingService = {
       const { errors } = await client.models.StaffingRequest.update(input);
       if (errors) throw new Error("AWS rechazó la actualización.");
 
-      // REGISTRAR HISTORIAL DE CAMBIO
-      if (updates.status) {
-        await this.addHistory(id, `Estado cambiado a: ${updates.status}`, userName);
-      }
-      if (updates.role) {
-        await this.addHistory(id, `Cargo actualizado a: ${updates.role}`, userName);
+      // REGISTRAR HISTORIAL UNIFICADO (Evita duplicados si cambian varias cosas)
+      if (changeLog.length > 0) {
+        // Si hay varios cambios, los unimos en una sola entrada profesional
+        const fullDescription = changeLog.join(" | ");
+        await this.addHistory(id, fullDescription, userName);
       }
     } catch (error: any) {
       console.error('❌ Error crítico en actualización:', error.message);

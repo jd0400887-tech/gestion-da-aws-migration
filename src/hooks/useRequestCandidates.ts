@@ -21,25 +21,44 @@ export const useRequestCandidates = (requestId: string | null, userName: string 
     setLoading(true);
     try {
       const client = generateClient<Schema>();
+      
+      // 1. Solo traemos las aplicaciones de ESTA solicitud
       const { data: apps } = await client.models.Application.list({
         filter: { request_id: { eq: requestId } }
       });
 
-      const { data: allCandidates } = await client.models.Candidate.list();
-      const { data: allEmployees } = await client.models.Employee.list();
+      // 2. Para cada aplicación, buscamos el perfil (Empleado o Candidato) en paralelo
+      // Esto es mucho más rápido que bajar toda la base de datos
+      const mapped = await Promise.all(apps.map(async (app) => {
+        const candidateId = app.candidate_id || '';
+        
+        // Intentamos buscar en Empleados primero (más común)
+        const { data: emp } = await client.models.Employee.get({ id: candidateId });
+        
+        if (emp) {
+          return {
+            id: app.id as any,
+            request_id: requestId as any,
+            candidate_name: emp.name,
+            status: (app.status as any) || 'Asignado',
+            created_at: app.applied_at,
+            existing_employee_id: emp.id
+          };
+        }
 
-      const mapped = apps.map(app => {
-        const cand = allCandidates.find(c => c.id === app.candidate_id);
-        const emp = allEmployees.find(e => e.id === app.candidate_id);
+        // Si no es empleado, buscamos en la tabla de candidatos externos
+        const { data: cand } = await client.models.Candidate.get({ id: candidateId });
+
         return {
           id: app.id as any,
           request_id: requestId as any,
-          candidate_name: cand?.name || emp?.name || 'Candidato Desconocido',
+          candidate_name: cand?.name || 'Candidato Desconocido',
           status: (app.status as any) || 'Asignado',
           created_at: app.applied_at,
-          existing_employee_id: emp ? emp.id : null
+          existing_employee_id: null
         };
-      });
+      }));
+
       setCandidates(mapped);
     } catch (error) {
       console.error('Error fetching candidates from AWS:', error);
@@ -51,12 +70,35 @@ export const useRequestCandidates = (requestId: string | null, userName: string 
     fetchCandidates();
   }, [fetchCandidates]);
 
-  const addCandidate = async (newCandidate: Omit<RequestCandidate, 'id' | 'status'>) => {
+  /**
+   * AÑADIR CANDIDATO CON REGLAS DE NEGOCIO SENIOR
+   */
+  const addCandidate = async (newCandidate: Omit<RequestCandidate, 'id' | 'status'>, requestType: 'permanente' | 'temporal' = 'temporal') => {
     try {
       const client = generateClient<Schema>();
       let candidateId = newCandidate.existing_employee_id;
       let nameForLog = newCandidate.candidate_name;
 
+      // VALIDACIÓN DE REGLAS DE NEGOCIO (MANDATOS MAESTROS)
+      if (candidateId) {
+        const { data: emp } = await client.models.Employee.get({ id: candidateId });
+        
+        if (emp) {
+          // 1. REGLA DE EXCLUSIVIDAD DE PLAZA FIJA
+          if (emp.employee_type === 'permanente' && requestType === 'permanente') {
+            throw new Error(`RESTRICCIÓN: ${emp.name} ya cuenta con contrato Permanente. No puede ser asignado a otra vacante de plaza fija.`);
+          }
+          
+          // 2. BLOQUEO POR LISTA NEGRA (Seguridad extra)
+          if (emp.is_blacklisted) {
+            throw new Error(`BLOQUEO DE SEGURIDAD: ${emp.name} se encuentra en Lista Negra y no puede ser asignado.`);
+          }
+
+          nameForLog = emp.name;
+        }
+      }
+
+      // Si no existe el ID, creamos un candidato externo (Prospecto)
       if (!candidateId) {
         const { data: cand } = await client.models.Candidate.create({
           name: newCandidate.candidate_name || 'Nuevo Candidato',
@@ -64,9 +106,6 @@ export const useRequestCandidates = (requestId: string | null, userName: string 
           status: 'Activo'
         });
         candidateId = cand?.id || '';
-      } else {
-        const emp = (await client.models.Employee.get({ id: candidateId })).data;
-        nameForLog = emp?.name || 'Empleado';
       }
 
       await client.models.Application.create({
@@ -76,13 +115,18 @@ export const useRequestCandidates = (requestId: string | null, userName: string 
         applied_at: new Date().toISOString()
       });
 
-      // REGISTRAR EN HISTORIAL
-      await staffingService.addHistory(String(requestId), `Candidato asignado: ${nameForLog}`, userName);
+      // REGISTRAR EN HISTORIAL CON ETIQUETA DE REFUERZO SI APLICA
+      const isCover = candidateId && requestType === 'temporal';
+      const logMessage = isCover 
+        ? `Candidato asignado como REFUERZO (COVER): ${nameForLog}`
+        : `Candidato asignado: ${nameForLog}`;
+
+      await staffingService.addHistory(String(requestId), logMessage, userName);
 
       await fetchCandidates();
-    } catch (error) {
-      console.error('Error adding candidate to AWS:', error);
-      throw error;
+    } catch (error: any) {
+      console.error('Error en validación de negocio:', error.message);
+      throw error; // Re-lanzamos para que la UI lo capture
     }
   };
 
@@ -125,3 +169,4 @@ export const useRequestCandidates = (requestId: string | null, userName: string 
 
   return { candidates, loading, addCandidate, updateCandidateStatus, deleteCandidate };
 };
+

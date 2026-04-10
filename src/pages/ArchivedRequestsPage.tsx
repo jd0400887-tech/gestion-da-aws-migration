@@ -2,7 +2,7 @@ import { useState, useMemo } from 'react';
 import { 
   Box, Typography, Paper, Table, TableBody, TableCell, TableContainer, TableHead, 
   TableRow, Chip, IconButton, Grid, TextField, Select, MenuItem, InputLabel, 
-  FormControl, Button, InputAdornment, Avatar, Tooltip, Stack, Divider
+  FormControl, Button, InputAdornment, Avatar, Tooltip, Stack, Divider, CircularProgress
 } from '@mui/material';
 
 // Iconos
@@ -17,11 +17,13 @@ import CategoryIcon from '@mui/icons-material/Category';
 import AssignmentIcon from '@mui/icons-material/Assignment';
 
 import { useStaffingRequestsContext } from '../contexts/StaffingRequestsContext';
+import { useHotels } from '../hooks/useHotels';
+import { useAuth } from '../hooks/useAuth';
 import type { StaffingRequest } from '../types';
 import ConfirmationDialog from '../components/common/ConfirmationDialog';
 import StaffingRequestDetailsDialog from '../components/staffing-requests/StaffingRequestDetailsDialog';
 
-const statusColors: { [key in StaffingRequest['status']]: 'default' | 'primary' | 'info' | 'success' | 'warning' | 'error' } = {
+const statusColors: { [key in StaffingRequest['status'] | 'Archivada']: 'default' | 'primary' | 'info' | 'success' | 'warning' | 'error' } = {
   'Pendiente': 'default',
   'Enviada a Reclutamiento': 'primary',
   'En Proceso': 'info',
@@ -30,15 +32,21 @@ const statusColors: { [key in StaffingRequest['status']]: 'default' | 'primary' 
   'Cancelada por Hotel': 'error',
   'Candidato No Presentado': 'error',
   'Vencida': 'error',
+  'Archivada': 'default'
 };
 
-const allStatuses: StaffingRequest['status'][] = ['Pendiente', 'Enviada a Reclutamiento', 'En Proceso', 'Completada', 'Completada Parcialmente', 'Cancelada por Hotel', 'Candidato No Presentado', 'Vencida'];
+const allStatuses: (StaffingRequest['status'] | 'Archivada')[] = ['Pendiente', 'Enviada a Reclutamiento', 'En Proceso', 'Completada', 'Completada Parcialmente', 'Candidato No Presentado', 'Cancelada por Hotel', 'Vencida', 'Archivada'];
 const requestTypes = ['temporal', 'permanente'];
 
 export default function ArchivedRequestsPage() {
-  const { deleteRequest, unarchiveRequest, archivedRequests, loading } = useStaffingRequestsContext();
+  const { profile } = useAuth();
+  const { deleteRequest, updateRequest, archivedRequests, loading } = useStaffingRequestsContext();
+  const { hotels } = useHotels();
+
+  const isAdmin = profile?.role === 'ADMIN';
+
   const [isConfirmDialogOpen, setIsConfirmDialogOpen] = useState(false);
-  const [requestToDelete, setRequestToDelete] = useState<number | null>(null);
+  const [requestToDelete, setRequestToDelete] = useState<string | null>(null);
   const [isDetailsDialogOpen, setIsDetailsDialogOpen] = useState(false);
   const [selectedRequest, setSelectedRequest] = useState<StaffingRequest | null>(null);
 
@@ -67,29 +75,43 @@ export default function ArchivedRequestsPage() {
     });
   };
 
+  // Enriquecemos los datos con los nombres de hoteles
+  const enrichedArchivedRequests = useMemo(() => {
+    return archivedRequests.map(req => {
+      const hotel = hotels.find(h => h.id === req.hotel_id);
+      return {
+        ...req,
+        hotelName: hotel ? hotel.name : 'Hotel no encontrado'
+      };
+    });
+  }, [archivedRequests, hotels]);
+
   const filteredRequests = useMemo(() => {
-    return archivedRequests.filter(req => {
-      const startDate = filters.startDate ? new Date(filters.startDate) : null;
-      const endDate = filters.endDate ? new Date(filters.endDate) : null;
-      const reqDate = new Date(req.start_date);
+    return enrichedArchivedRequests.filter(req => {
+      // 1. Filtro de Fechas (Precisión por día)
+      const startDate = filters.startDate ? new Date(filters.startDate + 'T00:00:00') : null;
+      const endDate = filters.endDate ? new Date(filters.endDate + 'T23:59:59') : null;
+      const reqDate = new Date(req.start_date + 'T00:00:00');
 
       if (startDate && reqDate < startDate) return false;
       if (endDate && reqDate > endDate) return false;
 
-      return (
-        req.hotelName?.toLowerCase().includes(filters.hotelName.toLowerCase()) &&
-        req.role.toLowerCase().includes(filters.role.toLowerCase()) &&
-        (filters.status === '' || req.status === filters.status) &&
-        (filters.request_type === '' || req.request_type === filters.request_type)
-      );
-    });
-  }, [archivedRequests, filters]);
+      // 2. Normalización de textos para evitar errores con null/undefined
+      const hotelMatch = (req.hotelName || '').toLowerCase().includes(filters.hotelName.toLowerCase());
+      const roleMatch = (req.role || '').toLowerCase().includes(filters.role.toLowerCase());
+      const statusMatch = filters.status === '' || req.status === filters.status;
+      const typeMatch = filters.request_type === '' || req.request_type === filters.request_type;
 
-  const handleUnarchive = async (id: number) => {
-    await unarchiveRequest(id);
+      return hotelMatch && roleMatch && statusMatch && typeMatch;
+    });
+  }, [enrichedArchivedRequests, filters]);
+
+  const handleUnarchive = async (id: string) => {
+    // Restauramos a Pendiente (o podrías restaurar al último estado conocido si lo guardáramos)
+    await updateRequest(id, { status: 'Pendiente' });
   };
 
-  const handleDeleteClick = (id: number) => {
+  const handleDeleteClick = (id: string) => {
     setRequestToDelete(id);
     setIsConfirmDialogOpen(true);
   };
@@ -316,15 +338,18 @@ export default function ArchivedRequestsPage() {
                           <UnarchiveIcon fontSize="small" />
                         </IconButton>
                       </Tooltip>
-                      <Tooltip title="Eliminar Permanentemente">
-                        <IconButton 
-                          onClick={(e) => { e.stopPropagation(); handleDeleteClick(req.id); }} 
-                          size="small" 
-                          sx={{ color: 'error.main', backgroundColor: 'rgba(211, 47, 47, 0.1)' }}
-                        >
-                          <DeleteForeverIcon fontSize="small" />
-                        </IconButton>
-                      </Tooltip>
+                      
+                      {isAdmin && (
+                        <Tooltip title="Eliminar Permanentemente">
+                          <IconButton 
+                            onClick={(e) => { e.stopPropagation(); handleDeleteClick(req.id); }} 
+                            size="small" 
+                            sx={{ color: 'error.main', backgroundColor: 'rgba(211, 47, 47, 0.1)' }}
+                          >
+                            <DeleteForeverIcon fontSize="small" />
+                          </IconButton>
+                        </Tooltip>
+                      )}
                     </Stack>
                   </TableCell>
                 </TableRow>

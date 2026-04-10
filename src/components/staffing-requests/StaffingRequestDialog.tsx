@@ -288,7 +288,26 @@ export default function StaffingRequestDialog({ open, onClose, onSubmit, initial
                   <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 800 }}>CANDIDATO EXTERNO (NUEVO)</Typography>
                   <Stack direction="row" spacing={1} sx={{ mt: 0.5 }}>
                     <TextField fullWidth size="small" placeholder="Nombre completo..." value={newCandidateName} onChange={(e) => setNewCandidateName(e.target.value)} sx={inputStyles} />
-                    <Button variant="contained" onClick={async () => { if (newCandidateName && initialData?.id) { await addCandidate({ request_id: String(initialData.id), candidate_name: newCandidateName, existing_employee_id: null }); setNewCandidateName(''); } }} sx={{ borderRadius: 2, fontWeight: 'bold' }}>Añadir</Button>
+                    <Button 
+                      variant="contained" 
+                      onClick={async () => { 
+                        if (newCandidateName && initialData?.id) { 
+                          try {
+                            await addCandidate({ 
+                              request_id: String(initialData.id), 
+                              candidate_name: newCandidateName, 
+                              existing_employee_id: null 
+                            }, formData.request_type); 
+                            setNewCandidateName(''); 
+                          } catch (e: any) {
+                            alert(e.message);
+                          }
+                        } 
+                      }} 
+                      sx={{ borderRadius: 2, fontWeight: 'bold' }}
+                    >
+                      Añadir
+                    </Button>
                   </Stack>
                 </Box>
                 <Divider><Typography variant="caption" sx={{ fontWeight: 800 }}>Ó</Typography></Divider>
@@ -299,11 +318,31 @@ export default function StaffingRequestDialog({ open, onClose, onSubmit, initial
                       fullWidth
                       size="small"
                       options={employees}
-                      getOptionLabel={(option) => option.name}
+                      getOptionLabel={(option) => `${option.name} (${option.employeeType === 'permanente' ? 'Fijo' : 'Eventual'})`}
                       onChange={(_e, val) => setSelectedExistingEmployeeId(val ? val.id : null)}
                       renderInput={(params) => <TextField {...params} label="Buscar en base de datos" sx={inputStyles} />}
                     />
-                    <Button variant="outlined" color="primary" onClick={async () => { if (selectedExistingEmployeeId && initialData?.id) { await addCandidate({ request_id: String(initialData.id), candidate_name: null, existing_employee_id: selectedExistingEmployeeId }); setSelectedExistingEmployeeId(null); } }} sx={{ borderRadius: 2, fontWeight: 'bold' }}>Asignar</Button>
+                    <Button 
+                      variant="outlined" 
+                      color="primary" 
+                      onClick={async () => { 
+                        if (selectedExistingEmployeeId && initialData?.id) { 
+                          try {
+                            await addCandidate({ 
+                              request_id: String(initialData.id), 
+                              candidate_name: null, 
+                              existing_employee_id: selectedExistingEmployeeId 
+                            }, formData.request_type); 
+                            setSelectedExistingEmployeeId(null); 
+                          } catch (e: any) {
+                            alert(e.message);
+                          }
+                        } 
+                      }} 
+                      sx={{ borderRadius: 2, fontWeight: 'bold' }}
+                    >
+                      Asignar
+                    </Button>
                   </Stack>
                 </Box>
               </Stack>

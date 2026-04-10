@@ -54,7 +54,7 @@ export default function StaffingRequestsPage() {
   const [editingRequest, setEditingRequest] = useState<StaffingRequest | null>(null);
   const [viewMode, setViewMode] = useState<'kanban' | 'archived'>('kanban');
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
-  const [requestToDelete, setRequestToDelete] = useState<number | null>(null);
+  const [requestToDelete, setRequestToDelete] = useState<string | null>(null);
   const [snackbar, setSnackbar] = useState<{ open: boolean, message: string, severity: 'success' | 'info' | 'warning' | 'error' }>({
     open: false,
     message: '',
@@ -111,7 +111,7 @@ export default function StaffingRequestsPage() {
     }
   };
 
-  const handleDeleteRequest = (id: number) => {
+  const handleDeleteRequest = (id: string) => {
     setRequestToDelete(id);
     setDeleteConfirmOpen(true);
   };

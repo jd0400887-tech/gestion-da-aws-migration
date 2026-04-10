@@ -12,8 +12,8 @@ interface KanbanColumnProps {
   bgColor?: string;
   textColor?: string;
   onEditRequest: (request: StaffingRequest) => void;
-  onArchiveRequest: (id: number) => void;
-  onDeleteRequest?: (id: number) => void;
+  onArchiveRequest: (id: string) => void;
+  onDeleteRequest?: (id: string) => void;
 }
 
 export default function KanbanColumn({ 

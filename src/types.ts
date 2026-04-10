@@ -15,26 +15,6 @@ export interface Hotel {
   zone: 'Centro' | 'Norte' | 'Noroeste';
 }
 
-export interface Profile {
-  id: string;
-  email: string;
-  role: 'ADMIN' | 'COORDINATOR' | 'INSPECTOR' | 'RECRUITER';
-  assigned_zone: 'Centro' | 'Norte' | 'Noroeste' | null;
-  permissions?: string[];
-  telegram_id?: string | null; // For automatic identification via bot
-  language_preference?: 'en' | 'es'; // Preferred language for communication
-}
-
-export interface EmployeeAssignment {
-  id: string;
-  employeeId: string;
-  hotelId: string;
-  role: string;
-  startDate: string;
-  endDate?: string | null;
-  status: 'active' | 'inactive' | 'transferred';
-}
-
 export interface Employee {
   id: string; 
   employeeNumber: string;
@@ -52,19 +32,28 @@ export interface Employee {
   documentacion_completa: boolean;
 }
 
-export interface AttendanceRecord {
+export interface Profile {
   id: string;
-  employeeId: string;
-  hotelId: string;
-  timestamp: number; // Unix timestamp
+  email: string;
+  name: string;
+  role: 'ADMIN' | 'RECRUITER' | 'INSPECTOR';
+  assigned_zone?: string;
+  can_view_hotels: boolean;
+  can_view_employees: boolean;
+  can_view_requests: boolean;
+  can_view_applications: boolean;
+  can_view_payroll: boolean;
+  can_view_qa: boolean;
+  can_view_reports: boolean;
+  can_view_adoption: boolean;
 }
 
 export interface StaffingRequest {
   id: number;
-  request_number: string; // Follow-up number (SR26-001)
+  request_number: string;
   created_at: string;
   hotel_id: string;
-  hotelName?: string; // From the join
+  hotelName?: string;
   request_type: 'permanente' | 'temporal';
   num_of_people: number;
   role: string;
@@ -72,17 +61,10 @@ export interface StaffingRequest {
   shift_time?: string;
   start_date: string;
   status: 'Pendiente' | 'Enviada a Reclutamiento' | 'En Proceso' | 'Completada' | 'Completada Parcialmente' | 'Cancelada por Hotel' | 'Candidato No Presentado' | 'Vencida';
-  completed_at?: string | null;
-  notes?: string | null;
+  notes: string | null;
   candidate_count?: number;
-}
-
-export interface StaffingRequestHistory {
-  id: number;
-  created_at: string;
-  request_id: number;
-  changed_by: string;
-  change_description: string;
+  hours_since_creation?: number;
+  completed_at?: string | null;
 }
 
 export interface RequestCandidate {
@@ -93,4 +75,10 @@ export interface RequestCandidate {
   status: 'Asignado' | 'Llegó' | 'No llegó' | 'Confirmado';
 }
 
-// Force cache invalidation 2025-10-03
+export interface StaffingRequestHistory {
+  id: string;
+  request_id: string;
+  change_description: string;
+  changed_by: string;
+  created_at: string;
+}

@@ -1,14 +1,17 @@
 import { createContext, useContext, useState, useEffect, ReactNode, useCallback } from 'react';
-import { getCurrentUser, fetchUserAttributes, signOut as amplifySignOut } from 'aws-amplify/auth';
+import { getCurrentUser, signOut as amplifySignOut } from 'aws-amplify/auth';
 import { Hub } from 'aws-amplify/utils';
-import { Profile } from '../types';
+import { generateClient } from 'aws-amplify/api';
+import type { Schema } from '../../amplify/data/resource';
+import type { Profile } from '../types';
 
 interface AuthContextType {
   session: any | null;
+  user: any | null;
   profile: Profile | null;
   loading: boolean;
+  signIn: (data: any) => void;
   signOut: () => Promise<void>;
-  refreshUser: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -18,63 +21,112 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [profile, setProfile] = useState<Profile | null>(null);
   const [loading, setLoading] = useState(true);
 
-  const loadUser = useCallback(async () => {
-    try {
-      setLoading(true);
-      const user = await getCurrentUser();
-      const attributes = await fetchUserAttributes();
-      
-      setSession(user);
+  const fetchProfile = useCallback(async (user: any) => {
+    const userEmail = user.signInDetails?.loginId || '';
+    
+    // SEGURIDAD: CUENTA MAESTRA ADMIN
+    if (userEmail === 'admin@oranjeapp.com') {
+      console.info('👑 Acceso de Administrador Maestro detectado.');
       setProfile({
         id: user.userId,
-        email: attributes.email || '',
-        role: (attributes['custom:role'] as any) || 'ADMIN',
-        assigned_zone: null,
-        permissions: ['ALL']
+        email: userEmail,
+        name: 'Administrador Maestro',
+        role: 'ADMIN',
+        can_view_hotels: true,
+        can_view_employees: true,
+        can_view_requests: true,
+        can_view_applications: true,
+        can_view_payroll: true,
+        can_view_qa: true,
+        can_view_reports: true,
+        can_view_adoption: true
       });
+      return;
+    }
+
+    try {
+      const client = generateClient<Schema>();
+      const { data: profiles } = await client.models.Profile.list({
+        filter: { email: { eq: userEmail } }
+      });
+
+      if (profiles && profiles.length > 0) {
+        const p = profiles[0];
+        setProfile({
+          id: p.id,
+          email: p.email,
+          name: p.name || '',
+          role: (p.role as any) || 'RECRUITER',
+          can_view_hotels: p.can_view_hotels ?? true,
+          can_view_employees: p.can_view_employees ?? true,
+          can_view_requests: p.can_view_requests ?? true,
+          can_view_applications: p.can_view_applications ?? true,
+          can_view_payroll: p.can_view_payroll ?? false,
+          can_view_qa: p.can_view_qa ?? false,
+          can_view_reports: p.can_view_reports ?? false,
+          can_view_adoption: p.can_view_adoption ?? false
+        });
+      } else {
+        setProfile({
+          id: user.userId,
+          email: userEmail,
+          name: 'Usuario Nuevo',
+          role: 'RECRUITER',
+          can_view_hotels: true,
+          can_view_employees: true,
+          can_view_requests: true,
+          can_view_applications: true,
+          can_view_payroll: false,
+          can_view_qa: false,
+          can_view_reports: false,
+          can_view_adoption: false
+        });
+      }
+    } catch (error) {
+      console.error('Error fetching profile from AWS RDS:', error);
+    }
+  }, []);
+
+  const checkUser = useCallback(async () => {
+    setLoading(true);
+    try {
+      const user = await getCurrentUser();
+      if (user) {
+        setSession(user);
+        await fetchProfile(user);
+      } else {
+        setSession(null);
+        setProfile(null);
+      }
     } catch (error) {
       setSession(null);
       setProfile(null);
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [fetchProfile]);
 
   useEffect(() => {
-    // 1. Carga inicial
-    loadUser();
-
-    // 2. Escuchar eventos de AWS (Login/Logout) en tiempo real
+    checkUser();
     const unsubscribe = Hub.listen('auth', ({ payload }) => {
-      switch (payload.event) {
-        case 'signedIn':
-          loadUser();
-          break;
-        case 'signedOut':
-          setSession(null);
-          setProfile(null);
-          break;
-      }
+      if (payload.event === 'signedIn') checkUser();
+      if (payload.event === 'signedOut') { setSession(null); setProfile(null); }
     });
-
     return () => unsubscribe();
-  }, [loadUser]);
+  }, [checkUser]);
 
   const signOut = async () => {
     try {
-      setLoading(true);
       await amplifySignOut();
-      localStorage.clear();
-      sessionStorage.clear();
+      setSession(null);
+      setProfile(null);
     } catch (error) {
-      console.error('Error al cerrar sesión:', error);
-    } finally {
-      setLoading(false);
+      console.error('Error signing out:', error);
     }
   };
 
   return (
-    <AuthContext.Provider value={{ session, profile, loading, signOut, refreshUser: loadUser }}>
+    <AuthContext.Provider value={{ session, user: session, profile, loading, signIn: checkUser, signOut }}>
       {children}
     </AuthContext.Provider>
   );
@@ -82,8 +134,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
 export const useAuthContext = () => {
   const context = useContext(AuthContext);
-  if (context === undefined) {
-    throw new Error('useAuthContext must be used within an AuthProvider');
-  }
+  if (context === undefined) throw new Error('useAuthContext error');
   return context;
 };

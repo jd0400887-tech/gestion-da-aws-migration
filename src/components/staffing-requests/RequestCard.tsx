@@ -9,6 +9,8 @@ import PeopleIcon from '@mui/icons-material/People';
 import ApartmentIcon from '@mui/icons-material/Apartment';
 import AccessTimeIcon from '@mui/icons-material/AccessTime';
 import ArchiveIcon from '@mui/icons-material/Archive';
+import ErrorOutlineIcon from '@mui/icons-material/ErrorOutline';
+import TimerIcon from '@mui/icons-material/Timer';
 
 import type { StaffingRequest } from '../../types';
 
@@ -48,7 +50,16 @@ export default function RequestCard({ request, onEdit, onArchive }: RequestCardP
     }
   };
 
+  const getSLAConfig = (hours?: number) => {
+    if (hours === undefined) return { color: 'text.secondary', icon: <TimerIcon fontSize="inherit" />, text: 'Sin tiempo' };
+    if (hours < 24) return { color: '#4caf50', icon: <TimerIcon fontSize="inherit" />, text: `${hours}h` };
+    if (hours < 48) return { color: '#ff9800', icon: <TimerIcon fontSize="inherit" />, text: `${hours}h` };
+    if (hours < 72) return { color: '#f44336', icon: <TimerIcon fontSize="inherit" />, text: `${hours}h` };
+    return { color: '#d32f2f', icon: <ErrorOutlineIcon fontSize="inherit" />, text: 'VENCIDA', urgent: true };
+  };
+
   const pConfig = getPriorityConfig(request.priority || 'Normal');
+  const sla = getSLAConfig(request.hours_since_creation);
 
   return (
     <Card 
@@ -73,13 +84,34 @@ export default function RequestCard({ request, onEdit, onArchive }: RequestCardP
       <CardContent sx={{ p: 2, '&:last-child': { pb: 1.5 } }}>
         {/* CABECERA */}
         <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1.5 }}>
-          <Typography 
-            variant="caption" 
-            {...attributes} {...listeners} // El arrastre se activa desde el código SR
-            sx={{ fontWeight: 900, color: 'text.secondary', fontFamily: 'monospace', cursor: 'grab', '&:active': { cursor: 'grabbing' } }}
-          >
-            {request.request_number}
-          </Typography>
+          <Stack direction="row" spacing={1} alignItems="center">
+            <Typography 
+              variant="caption" 
+              {...attributes} {...listeners} 
+              sx={{ fontWeight: 900, color: 'text.secondary', fontFamily: 'monospace', cursor: 'grab' }}
+            >
+              {request.request_number}
+            </Typography>
+            
+            {/* INDICADOR SLA (Semáforo) */}
+            <Tooltip title={request.status === 'Vencida' ? 'Solicitud fuera de SLA (72h)' : `Tiempo transcurrido: ${request.hours_since_creation}h`}>
+              <Box sx={{ 
+                display: 'flex', 
+                alignItems: 'center', 
+                gap: 0.3, 
+                px: 0.8, 
+                py: 0.2, 
+                borderRadius: 1, 
+                bgcolor: 'rgba(0,0,0,0.03)',
+                color: sla.color,
+                animation: sla.urgent ? 'pulse 1.5s infinite' : 'none',
+                '@keyframes pulse': { '0%': { opacity: 1 }, '50%': { opacity: 0.5 }, '100%': { opacity: 1 } }
+              }}>
+                {sla.icon}
+                <Typography variant="caption" sx={{ fontWeight: 900, fontSize: '0.6rem' }}>{sla.text}</Typography>
+              </Box>
+            </Tooltip>
+          </Stack>
           
           <Stack direction="row" spacing={1} alignItems="center">
             <Chip label={pConfig.label} size="small" sx={{ height: 18, fontSize: '0.55rem', fontWeight: 900, bgcolor: pConfig.bg, color: pConfig.color }} />

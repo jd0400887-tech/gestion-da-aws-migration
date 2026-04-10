@@ -102,6 +102,14 @@ const schema = a.schema({
     email: a.string().required(),
     name: a.string(),
     role: a.string(),
+    can_view_hotels: a.boolean().default(true),
+    can_view_employees: a.boolean().default(true),
+    can_view_requests: a.boolean().default(true),
+    can_view_applications: a.boolean().default(true),
+    can_view_payroll: a.boolean().default(false),
+    can_view_qa: a.boolean().default(false),
+    can_view_reports: a.boolean().default(false),
+    can_view_adoption: a.boolean().default(false),
   }).authorization((allow) => [allow.authenticated()]),
 
   EmployeeStatusChange: a.model({
