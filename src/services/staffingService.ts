@@ -4,7 +4,7 @@ import type { StaffingRequest } from '../types';
 
 /**
  * SERVICIO PROFESIONAL DE SOLICITUDES (AWS RDS)
- * Conectado directamente a PostgreSQL en Virginia.
+ * Conectado a PostgreSQL en AWS Cloud.
  */
 export const staffingService = {
   getClient() {
@@ -20,21 +20,24 @@ export const staffingService = {
         console.warn('⚠️ [AWS] Avisos al listar solicitudes:', errors);
       }
 
-      return requests.map(r => ({
-        id: r.id as any,
-        request_number: r.request_number,
-        created_at: r.createdAt || new Date().toISOString(),
-        hotel_id: r.hotel_id || '',
-        request_type: (r.request_type as 'permanente' | 'temporal') || 'temporal',
-        num_of_people: Number(r.num_of_people) || 1,
-        role: r.role || '',
-        priority: (r.priority as any) || 'Normal',
-        shift_time: r.shift_time || '',
-        start_date: r.start_date || new Date().toISOString().split('T')[0],
-        status: (r.status as any) || 'Pendiente',
-        notes: r.notes || '',
-        candidate_count: 0
-      }));
+      // Validar y limpiar cada solicitud para evitar crashes
+      return (requests || [])
+        .filter(r => r && r.id) // Ignorar registros corruptos
+        .map(r => ({
+          id: String(r.id),
+          request_number: r.request_number || 'SR-N/A',
+          created_at: r.createdAt || new Date().toISOString(),
+          hotel_id: r.hotel_id || '',
+          request_type: (r.request_type as any) || 'temporal',
+          num_of_people: Number(r.num_of_people) || 1,
+          role: r.role || 'Sin cargo',
+          priority: (r.priority as any) || 'Normal',
+          shift_time: r.shift_time || '',
+          start_date: r.start_date || new Date().toISOString().split('T')[0],
+          status: (r.status as any) || 'Pendiente',
+          notes: r.notes || '',
+          candidate_count: 0
+        }));
     } catch (error: any) {
       if (error.message?.includes('No current user')) return [];
       console.error('❌ Error al obtener solicitudes de RDS:', error);
