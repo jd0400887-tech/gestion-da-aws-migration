@@ -31,6 +31,9 @@ if (botLambda.addEnvironment) {
     'AMPLIFY_DATA_GRAPHQL_ENDPOINT',
     backend.data.resources.cfnResources.cfnGraphqlApi.attrGraphQlUrl
   );
+  // Forzar la lectura de las variables configuradas en la consola
+  botLambda.addEnvironment('BOT_TOKEN', process.env.BOT_TOKEN || '');
+  botLambda.addEnvironment('AMPLIFY_DATA_GRAPHQL_API_KEY', process.env.AMPLIFY_DATA_GRAPHQL_API_KEY || '');
 }
 
 // Forzar el empaquetado de dependencias para evitar el error 502 en producción
