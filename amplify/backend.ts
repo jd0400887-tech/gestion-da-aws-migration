@@ -31,16 +31,10 @@ if (botLambda.addEnvironment) {
     'AMPLIFY_DATA_GRAPHQL_ENDPOINT',
     backend.data.resources.cfnResources.cfnGraphqlApi.attrGraphQlUrl
   );
-  // Forzar la lectura de las variables configuradas en la consola
+  // Inyectar variables para el bot nativo
   botLambda.addEnvironment('BOT_TOKEN', process.env.BOT_TOKEN || '');
   botLambda.addEnvironment('AMPLIFY_DATA_GRAPHQL_API_KEY', process.env.AMPLIFY_DATA_GRAPHQL_API_KEY || '');
 }
-
-// Forzar el empaquetado de dependencias para evitar el error 502 en producción
-backend.oranjeBot.resources.lambda.node.addMetadata('bundling', {
-  externalModules: [],
-  nodeModules: ['node-telegram-bot-api']
-});
 
 const botUrl = backend.oranjeBot.resources.lambda.addFunctionUrl({
   authType: FunctionUrlAuthType.NONE, // Público para recibir de Telegram
