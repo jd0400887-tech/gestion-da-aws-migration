@@ -33,6 +33,12 @@ if (botLambda.addEnvironment) {
   );
 }
 
+// Forzar el empaquetado de dependencias para evitar el error 502 en producción
+backend.oranjeBot.resources.lambda.node.addMetadata('bundling', {
+  externalModules: [],
+  nodeModules: ['node-telegram-bot-api']
+});
+
 const botUrl = backend.oranjeBot.resources.lambda.addFunctionUrl({
   authType: FunctionUrlAuthType.NONE, // Público para recibir de Telegram
 });
