@@ -30,17 +30,19 @@ export default function S3Image({ path, alt, style, height, className }: S3Image
 
       let s3Path = path;
 
-      // SI ES UNA URL DE S3 CADUCADA (Legacy Fix)
-      // Intentamos extraer la ruta real del archivo si es una URL de AWS
+      // SI ES UNA URL DE S3 (Legacy Fix)
       if (path.includes('s3.amazonaws.com') || path.includes('.s3.')) {
         try {
-          // Extraemos la parte después del nombre del bucket
-          const urlParts = new URL(path);
-          const pathSegments = urlParts.pathname.split('/');
-          // Buscamos el segmento que empieza con 'hotel-images' o 'public'
-          const imagesIndex = pathSegments.findIndex(s => s === 'hotel-images');
+          const urlObj = new URL(path);
+          // Eliminamos el primer slash y los query parameters
+          const cleanPath = urlObj.pathname.startsWith('/') ? urlObj.pathname.substring(1) : urlObj.pathname;
+          
+          // Buscamos donde empieza 'hotel-images'
+          const imagesIndex = cleanPath.indexOf('hotel-images/');
           if (imagesIndex !== -1) {
-            s3Path = pathSegments.slice(imagesIndex).join('/');
+            s3Path = cleanPath.substring(imagesIndex);
+          } else {
+            s3Path = cleanPath;
           }
         } catch (e) {
           console.warn("Error parseando URL legacy de S3:", e);

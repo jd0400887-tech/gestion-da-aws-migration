@@ -2,8 +2,8 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { useState, useMemo } from 'react';
 import { 
   Box, Typography, Paper, Grid, List, ListItem, ListItemText, Chip, 
-  IconButton, Snackbar, FormControlLabel, Switch, Avatar, Stack, 
-  Divider, Button, Tooltip, CircularProgress, useTheme, TextField, InputAdornment
+  IconButton, Avatar, Stack, Divider, Button, Tooltip, CircularProgress, 
+  useTheme, TextField, InputAdornment, FormControlLabel, Switch
 } from '@mui/material';
 import ContentCopyIcon from '@mui/icons-material/ContentCopy';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
@@ -18,13 +18,12 @@ import PhoneIcon from '@mui/icons-material/Phone';
 import EmailIcon from '@mui/icons-material/Email';
 import SearchIcon from '@mui/icons-material/Search';
 import OpenInNewIcon from '@mui/icons-material/OpenInNew';
+import SmartToyIcon from '@mui/icons-material/SmartToy';
 
 import { MapContainer, TileLayer, Marker, Popup } from 'react-leaflet';
 import { useEmployees } from '../hooks/useEmployees';
-import type { Employee } from '../types';
 import L from 'leaflet';
 import { useHotels } from '../hooks/useHotels';
-import { useAuth } from '../hooks/useAuth';
 import TurnoverAnalysis from '../components/hotel/TurnoverAnalysis';
 import S3Image from '../components/common/S3Image';
 
@@ -49,20 +48,11 @@ export default function HotelDetailPage() {
   const { hotels, loading } = useHotels();
   const { employees } = useEmployees();
   
-  const [showCopySuccess, setShowCopySuccess] = useState(false);
   const [showOnlyPermanent, setShowOnlyPermanent] = useState(false);
-  const [showOnlyActive, setShowOnlyActive] = useState(true); // Filtro solicitado: Activos por defecto
+  const [showOnlyActive, setShowOnlyActive] = useState(true);
   const [employeeSearch, setEmployeeSearch] = useState('');
 
   const hotel = hotels.find(h => h.id === hotelId);
-
-  const handleCopyId = () => {
-    if (hotel) {
-      navigator.clipboard.writeText(hotel.id).then(() => {
-        setShowCopySuccess(true);
-      });
-    }
-  };
 
   const assignedEmployees = employees.filter(emp => emp.hotelId === hotelId);
   
@@ -102,12 +92,10 @@ export default function HotelDetailPage() {
         overflow: 'hidden',
         mb: 4
       }}>
-        {/* IMAGEN DE FONDO DINÁMICA */}
         <Box sx={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, zIndex: 0 }}>
           <S3Image path={hotel.imageUrl} alt={hotel.name} height={280} />
         </Box>
 
-        {/* Overlay para legibilidad */}
         <Box sx={{ 
           position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, 
           background: 'linear-gradient(to top, rgba(15, 23, 42, 0.9) 0%, rgba(15, 23, 42, 0.3) 100%)',
@@ -136,14 +124,12 @@ export default function HotelDetailPage() {
       </Box>
 
       <Box sx={{ px: { xs: 2, md: 4 } }}>
-        {/* BARRA DE CONTACTO */}
         <Paper elevation={0} sx={{ p: 2, mb: 4, borderRadius: 3, bgcolor: isLight ? '#f8fafc' : 'rgba(255,255,255,0.03)', border: '1px solid rgba(0,0,0,0.05)', display: 'flex', gap: 4, flexWrap: 'wrap' }}>
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}><PersonIcon color="primary" fontSize="small" /><Typography variant="body2" sx={{ fontWeight: 'bold' }}>Gerente: <Typography component="span" variant="body2" color="text.secondary">{hotel.managerName || 'No asignado'}</Typography></Typography></Box>
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}><PhoneIcon color="primary" fontSize="small" /><Typography variant="body2" sx={{ fontWeight: 'bold' }}>Tel: <Typography component="span" variant="body2" color="text.secondary">{hotel.phone || 'N/A'}</Typography></Typography></Box>
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}><EmailIcon color="primary" fontSize="small" /><Typography variant="body2" sx={{ fontWeight: 'bold' }}>Email: <Typography component="span" variant="body2" color="text.secondary">{hotel.email || 'N/A'}</Typography></Typography></Box>
         </Paper>
 
-        {/* TARJETAS DE ESTADÍSTICAS */}
         <Grid container spacing={3} sx={{ mb: 4 }}>
           {[
             { label: 'Total Personal', val: stats.total, color: 'primary.main', icon: <PeopleIcon /> },
@@ -182,9 +168,73 @@ export default function HotelDetailPage() {
 
           <Grid item xs={12} lg={7}>
             <Stack spacing={3}>
+              {/* PANEL DE ORANJEBOT */}
+              <Paper sx={{ p: 3, borderRadius: 4, border: '1px solid rgba(0, 136, 204, 0.1)', bgcolor: isLight ? '#f0f9ff' : 'rgba(0, 136, 204, 0.05)' }}>
+                <Stack direction="row" alignItems="center" spacing={2} sx={{ mb: 2 }}>
+                  <Avatar sx={{ bgcolor: '#0088cc', width: 40, height: 40 }}><SmartToyIcon /></Avatar>
+                  <Box>
+                    <Typography variant="subtitle1" sx={{ fontWeight: 800 }}>OranjeBot</Typography>
+                    <Typography variant="caption" color="text.secondary">Integración con Telegram</Typography>
+                  </Box>
+                </Stack>
+                
+                {hotel.telegram_chat_id ? (
+                  <Box>
+                    <Chip 
+                      icon={<SmartToyIcon style={{ color: 'white' }} />} 
+                      label={`Vinculado: ${hotel.telegram_chat_id}`} 
+                      sx={{ bgcolor: '#0088cc', color: 'white', fontWeight: 'bold', width: '100%', mb: 1 }} 
+                    />
+                    <Typography variant="caption" display="block" sx={{ textAlign: 'center', opacity: 0.7 }}>
+                      El hotel ya puede gestionar vacantes vía Telegram.
+                    </Typography>
+                  </Box>
+                ) : (
+                  <Box sx={{ textAlign: 'center' }}>
+                    <Typography variant="body2" sx={{ mb: 2, fontWeight: 'bold', color: 'primary.main' }}>
+                      INVITACIÓN PARA EL HOTEL
+                    </Typography>
+                    <Typography variant="caption" sx={{ mb: 2, display: 'block', opacity: 0.8 }}>
+                      Envía este enlace al gerente para activar su bot:
+                    </Typography>
+                    
+                    <Stack spacing={1}>
+                      <Button 
+                        variant="contained" 
+                        fullWidth
+                        onClick={() => {
+                          const link = `https://t.me/OranjeAssistant_bot?start=${hotel.id}`;
+                          navigator.clipboard.writeText(link);
+                          alert("¡Enlace copiado al portapapeles!");
+                        }}
+                        startIcon={<ContentCopyIcon />}
+                        sx={{ bgcolor: '#0088cc', borderRadius: 2, fontWeight: 'bold' }}
+                      >
+                        Copiar Enlace Mágico
+                      </Button>
+
+                      <Button 
+                        variant="outlined" 
+                        fullWidth
+                        component="a"
+                        href={`https://wa.me/?text=${encodeURIComponent(`Hello! Here is your activation link for OranjeBot: https://t.me/OranjeAssistant_bot?start=${hotel.id}`)}`}
+                        target="_blank"
+                        startIcon={<PhoneIcon />}
+                        sx={{ borderColor: '#25D366', color: '#25D366', '&:hover': { bgcolor: 'rgba(37, 211, 102, 0.05)', borderColor: '#128C7E' }, borderRadius: 2, fontWeight: 'bold' }}
+                      >
+                        Enviar por WhatsApp
+                      </Button>
+                    </Stack>
+
+                    <Typography variant="caption" sx={{ mt: 1.5, display: 'block', fontSize: '0.65rem', opacity: 0.5, fontStyle: 'italic' }}>
+                      El gerente solo debe pulsar "Iniciar" en Telegram.
+                    </Typography>
+                  </Box>
+                )}
+              </Paper>
+
               <TurnoverAnalysis hotelId={hotel.id} />
               
-              {/* LISTA DE PERSONAL MEJORADA */}
               <Paper sx={{ p: 3, borderRadius: 4, border: '1px solid rgba(0,0,0,0.05)', bgcolor: isLight ? 'white' : 'rgba(255,255,255,0.02)' }}>
                 <Box sx={{ mb: 3 }}>
                   <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>

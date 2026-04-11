@@ -15,9 +15,11 @@ import PhotoCameraIcon from '@mui/icons-material/PhotoCamera';
 import PersonIcon from '@mui/icons-material/Person';
 import PhoneIcon from '@mui/icons-material/Phone';
 import EmailIcon from '@mui/icons-material/Email';
+import SmartToyIcon from '@mui/icons-material/SmartToy';
 
 import { toTitleCase } from '../../utils/stringUtils';
 import { useAuth } from '../../hooks/useAuth';
+import type { Hotel } from '../../types';
 
 interface HotelFormProps {
   hotelData: Partial<Hotel>;
@@ -271,6 +273,69 @@ export default function HotelForm({ hotelData, onFormChange, uploadHotelImage, i
           </Paper>
         </Grid>
 
+        {/* --- SECCIÓN 4: CONFIGURACIÓN DE TELEGRAM --- */}
+        <Grid item xs={12}>
+          <Paper elevation={0} sx={{ 
+            p: 2, borderRadius: 3, 
+            background: 'linear-gradient(135deg, rgba(0, 136, 204, 0.08) 0%, rgba(255, 255, 255, 0) 100%)',
+            border: '1px solid rgba(0, 136, 204, 0.1)'
+          }}>
+            <Stack direction="row" alignItems="center" spacing={2} sx={{ mb: 2.5 }}>
+              <Avatar sx={{ bgcolor: '#0088cc', width: 40, height: 40, boxShadow: '0 4px 10px rgba(0, 136, 204, 0.3)' }}>
+                <SmartToyIcon />
+              </Avatar>
+              <Box>
+                <Typography variant="subtitle1" sx={{ fontWeight: 800 }}>OranjeBot (Telegram)</Typography>
+                <Typography variant="caption" color="text.secondary">Vinculación para solicitudes vía bot</Typography>
+              </Box>
+            </Stack>
+
+            <Grid container spacing={2} alignItems="center">
+              <Grid item xs={12} sm={6}>
+                <TextField 
+                  label="Telegram Chat ID" 
+                  fullWidth size="small" 
+                  value={hotelData.telegram_chat_id || ''} 
+                  onChange={(e) => onFormChange('telegram_chat_id', e.target.value)}
+                  placeholder="Ej: 123456789"
+                  sx={inputStyles}
+                  helperText="ID de vinculación automática"
+                  InputProps={{ 
+                    startAdornment: <InputAdornment position="start"><SmartToyIcon fontSize="small" color="primary" /></InputAdornment>
+                  }}
+                />
+              </Grid>
+              <Grid item xs={12} sm={6}>
+                <Stack direction="row" spacing={1}>
+                  <Button 
+                    variant="outlined" 
+                    fullWidth 
+                    size="small"
+                    onClick={() => {
+                      const link = `https://t.me/OranjeAssistant_bot?start=${hotelData.id}`;
+                      navigator.clipboard.writeText(link);
+                      alert("¡Enlace copiado!");
+                    }}
+                    sx={{ borderRadius: 2, fontWeight: 'bold', textTransform: 'none' }}
+                  >
+                    Copiar Link
+                  </Button>
+                  <Button 
+                    variant="outlined" 
+                    fullWidth 
+                    size="small"
+                    component="a"
+                    href={`https://wa.me/?text=${encodeURIComponent(`Hello! Here is your activation link for OranjeBot: https://t.me/OranjeAssistant_bot?start=${hotelData.id}`)}`}
+                    target="_blank"
+                    sx={{ borderRadius: 2, fontWeight: 'bold', borderColor: '#25D366', color: '#25D366', textTransform: 'none' }}
+                  >
+                    WhatsApp
+                  </Button>
+                </Stack>
+              </Grid>
+            </Grid>
+          </Paper>
+        </Grid>
       </Grid>
     </Box>
   );

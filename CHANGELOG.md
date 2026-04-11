@@ -2,6 +2,28 @@
 
 Todos los cambios notables en este proyecto serán documentados en este archivo.
 
+## [0.7.0] - 2026-04-10 (Sesión 7 - OranjeBot: Telegram Integration & AWS Lambda)
+
+### Añadido
+- **OranjeBot (Telegram Integration):** Implementación completa de un bot de Telegram para que los hoteles gestionen vacantes en tiempo real.
+- **Flujo de Reclutamiento Conversacional:** Guía interactiva de 5 pasos para crear solicitudes (Cargo -> Cantidad -> Tipo -> Fecha -> Horario).
+- **Folio Automático:** Generación de números de solicitud SR24-XXX directamente desde el bot.
+- **Vinculación por "Link Mágico":** Sistema de URL única (`t.me/?start=ID`) para asociar chats de Telegram con hoteles específicos en AWS.
+
+### Técnico (AWS & Seguridad)
+- **Infraestructura Serverless:** Despliegue de AWS Lambda con URL pública protegida por Webhook de Telegram.
+- **Seguridad Robusta:** Configuración de autenticación mediante API Key en la Lambda para asegurar estabilidad en la comunicación con AppSync.
+- **Modo de Diagnóstico:** Implementación de reportes de errores en tiempo real vía Telegram para facilitar el mantenimiento del bot.
+- **Inyección de Secretos:** Configuración segura de `TELEGRAM_BOT_TOKEN` y `AMPLIFY_DATA_GRAPHQL_API_KEY` en AWS Secrets Manager.
+- **Comunicación Nativa:** Transición de Amplify Data Models a consultas GraphQL directas para optimizar el rendimiento y confiabilidad en la nube.
+
+### Corregido
+- **Error 500 Webhook:** Resolución de fallos de inicialización de Amplify dentro de entornos Lambda.
+- **Permisos de Base de Datos:** Corrección de reglas de autorización en `resource.ts` para permitir el acceso controlado del bot a Hoteles y Solicitudes.
+- **Estabilidad de Tipos:** Ajustes en `backend.ts` para cumplir con las especificaciones estrictas de AWS CDK en Amplify Gen 2.
+
+---
+
 ## [0.6.0] - 2026-04-09 (Sesión 6 - Pulido Professional & Estabilidad S3)
 
 ### Añadido

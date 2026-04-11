@@ -2,22 +2,44 @@ import { defineBackend } from '@aws-amplify/backend';
 import { auth } from './auth/resource';
 import { data } from './data/resource';
 import { storage } from './storage/resource';
+import { oranjeBot } from './functions/telegram-bot-resource';
+import { PolicyStatement } from 'aws-cdk-lib/aws-iam';
+import { FunctionUrlAuthType } from 'aws-cdk-lib/aws-lambda';
 
 /**
  * BACKEND MAESTRO - ORANJEAPP (AWS AMPLIFY GEN 2)
- * Este archivo une la autenticación, los datos RDS, el almacenamiento S3 y funciones.
  */
-
 const backend = defineBackend({
   auth,
   data,
   storage,
+  oranjeBot,
 });
 
-/**
- * CONFIGURACIÓN DE RDS POSTGRESQL (N. VIRGINIA)
- * Host: oranjeapp-db-v3.cbu0qiwu6p8s.us-east-1.rds.amazonaws.com
- * Database: oranjeapp_db
- */
-// Los resolvers de SQL se conectan automáticamente cuando el esquema 
-// se despliega con el ID de conexión de la base de datos en la consola de AWS.
+// 1. OTORGAR PERMISOS A LA FUNCIÓN PARA ACCEDER AL API GRAPHQL (RDS)
+backend.oranjeBot.resources.lambda.addToRolePolicy(
+  new PolicyStatement({
+    actions: ['appsync:GraphQL'],
+    resources: [`${backend.data.resources.graphqlApi.arn}/*`],
+  })
+);
+
+// 2. ACTIVAR URL PÚBLICA PARA EL WEBHOOK DE TELEGRAM
+const botLambda = backend.oranjeBot.resources.lambda as any;
+if (botLambda.addEnvironment) {
+  botLambda.addEnvironment(
+    'AMPLIFY_DATA_GRAPHQL_ENDPOINT',
+    backend.data.resources.cfnResources.cfnGraphqlApi.attrGraphQlUrl
+  );
+}
+
+const botUrl = backend.oranjeBot.resources.lambda.addFunctionUrl({
+  authType: FunctionUrlAuthType.NONE, // Público para recibir de Telegram
+});
+
+// 3. EXPORTAR LA URL PARA QUE APAREZCA EN LA TERMINAL
+backend.addOutput({
+  custom: {
+    telegramBotUrl: botUrl.url,
+  },
+});

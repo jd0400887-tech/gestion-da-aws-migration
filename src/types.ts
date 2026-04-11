@@ -13,6 +13,7 @@ export interface Hotel {
   activeEmployees?: number;
   totalEmployees?: number;
   zone: 'Centro' | 'Norte' | 'Noroeste';
+  telegram_chat_id?: string | null;
 }
 
 export interface Employee {
