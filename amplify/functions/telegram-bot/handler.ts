@@ -1,35 +1,11 @@
 import type { Handler } from 'aws-lambda';
 import TelegramBot from 'node-telegram-bot-api';
+import { Amplify } from 'aws-amplify';
+import { generateClient } from 'aws-amplify/api';
 
 /**
- * ORANJEBOT: NATIVE FETCH GRAPHQL (ULTRA-ROBUST)
- * Esta función evita problemas de autenticación de Amplify en Lambda.
+ * ORANJEBOT: RDS NATIVE GRAPHQL QUERIES (VERSIÓN ORIGINAL EXITOSA)
  */
-async function callGraphQL(query: string, variables: any = {}) {
-  const endpoint = process.env.AMPLIFY_DATA_GRAPHQL_ENDPOINT || '';
-  const apiKey = process.env.AMPLIFY_DATA_GRAPHQL_API_KEY || '';
-
-  if (!endpoint || !apiKey) {
-    throw new Error(`Configuración incompleta: ENDPOINT=${!!endpoint}, KEY=${!!apiKey}`);
-  }
-
-  const response = await fetch(endpoint, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'x-api-key': apiKey
-    },
-    body: JSON.stringify({ query, variables })
-  });
-
-  const json: any = await response.json();
-  if (json.errors) {
-    throw new Error(JSON.stringify(json.errors));
-  }
-  return json.data;
-}
-
-// QUERIES NATIVAS
 const GET_HOTEL = `query GetHotel($id: ID!) { getHotel(id: $id) { id name telegram_chat_id } }`;
 const UPDATE_HOTEL_CHAT = `mutation UpdateHotelChat($id: ID!, $chatId: String!) { updateHotel(input: { id: $id, telegram_chat_id: $chatId }) { id name } }`;
 const LIST_HOTELS_BY_CHAT = `query ListHotels($chatId: String!) { listHotels(filter: { telegram_chat_id: { eq: $chatId } }) { items { id name } } }`;
@@ -63,6 +39,22 @@ export const handler: Handler = async (event) => {
   }
 
   try {
+    Amplify.configure({
+      API: {
+        GraphQL: {
+          endpoint: process.env.AMPLIFY_DATA_GRAPHQL_ENDPOINT || '',
+          region: process.env.AWS_REGION || 'us-east-1',
+          defaultAuthMode: 'apiKey',
+          apiKey: process.env.AMPLIFY_DATA_GRAPHQL_API_KEY || ''
+        }
+      }
+    });
+
+    const client = generateClient({
+      authMode: 'apiKey',
+      apiKey: process.env.AMPLIFY_DATA_GRAPHQL_API_KEY || ''
+    });
+
     const body = typeof event.body === 'string' ? JSON.parse(event.body) : event.body;
     if (!body) return { statusCode: 200, body: 'OK' };
 
@@ -77,7 +69,8 @@ export const handler: Handler = async (event) => {
           reply_markup: {
             inline_keyboard: [
               [{ text: '1', callback_data: `q_${posId}_1` }, { text: '2', callback_data: `q_${posId}_2` }, { text: '3', callback_data: `q_${posId}_3` }],
-              [{ text: '4', callback_data: `q_${posId}_4` }, { text: '5', callback_data: `q_${posId}_5` }, { text: '❌ Cancel', callback_data: 'c' }]
+              [{ text: '4', callback_data: `q_${posId}_4` }, { text: '5', callback_data: `q_${posId}_5` }],
+              [{ text: '❌ Cancel', callback_data: 'c' }]
             ]
           }
         });
@@ -130,50 +123,52 @@ export const handler: Handler = async (event) => {
 
       if (data.startsWith('f_')) {
         const [_, posId, qty, type, date, time] = data.split('_');
-        
-        const hotelsRes = await callGraphQL(LIST_HOTELS_BY_CHAT, { chatId });
-        const hotel = hotelsRes.listHotels.items[0];
-        
-        const posRes = await callGraphQL(GET_POSITION, { id: posId });
-        const position = posRes.getPosition;
+        const hotelsRes: any = await client.graphql({ query: LIST_HOTELS_BY_CHAT, variables: { chatId } });
+        const hotel = hotelsRes.data.listHotels.items[0];
+        const posRes: any = await client.graphql({ query: GET_POSITION, variables: { id: posId } });
+        const position = posRes.data.getPosition;
 
         if (!hotel || !position) {
           await bot.sendMessage(chatId, "❌ Identification error. Please contact support.");
           return { statusCode: 200, body: 'OK' };
         }
 
-        const currentYear = new Date().getFullYear().toString().slice(-2);
-        const randomPart = Math.floor(Math.random() * 1000).toString().padStart(3, '0');
-        const request_number = `SR${currentYear}-${randomPart}`;
+        const request_number = `SR${new Date().getFullYear().toString().slice(-2)}-${Math.floor(Math.random() * 1000).toString().padStart(3, '0')}`;
 
-        const newReqRes = await callGraphQL(CREATE_REQUEST, {
-          input: {
-            request_number,
-            hotel_id: hotel.id,
-            request_type: type === 'temp' ? 'temporal' : 'permanente',
-            num_of_people: parseInt(qty),
-            role: position.name,
-            priority: 'Normal',
-            status: 'Pendiente',
-            start_date: date,
-            shift_time: time,
-            notes: 'Auto-created via OranjeBot'
+        const newReqRes: any = await client.graphql({
+          query: CREATE_REQUEST,
+          variables: {
+            input: {
+              request_number,
+              hotel_id: hotel.id,
+              request_type: type === 'temp' ? 'temporal' : 'permanente',
+              num_of_people: parseInt(qty),
+              role: position.name,
+              priority: 'Normal',
+              status: 'Pendiente',
+              start_date: date,
+              shift_time: time,
+              notes: 'Auto-created via OranjeBot'
+            }
           }
         });
-        const newReq = newReqRes.createStaffingRequest;
+        const newReq = newReqRes.data.createStaffingRequest;
 
         if (newReq?.id) {
-          await callGraphQL(CREATE_HISTORY, {
-            input: {
-              request_id: newReq.id,
-              change_description: `Request folio ${request_number} created via Telegram.`,
-              changed_by: `OranjeBot (${callbackQuery.from.first_name})`,
-              created_at: new Date().toISOString()
+          await client.graphql({
+            query: CREATE_HISTORY,
+            variables: {
+              input: {
+                request_id: newReq.id,
+                change_description: `Request folio ${request_number} created via Telegram.`,
+                changed_by: `OranjeBot`,
+                created_at: new Date().toISOString()
+              }
             }
           });
         }
 
-        await bot.sendMessage(chatId, `✅ **Request Submitted!**\n\n🔹 **Folio:** \`${request_number}\`\n🔹 **Hotel:** ${hotel.name}\n🔹 **Position:** ${position.name}\n🔹 **Qty:** ${qty}\n🔹 **Type:** ${type === 'temp' ? 'Temporary' : 'Permanent'}\n🔹 **Start Date:** ${date}\n🔹 **Shift:** ${time}`);
+        await bot.sendMessage(chatId, `✅ **Request Submitted!**\nFolio: \`${request_number}\`\nHotel: ${hotel.name}`);
         await bot.answerCallbackQuery(callbackQuery.id);
         return { statusCode: 200, body: 'OK' };
       }
@@ -194,12 +189,11 @@ export const handler: Handler = async (event) => {
       const parts = text.split(' ');
       if (parts.length > 1) {
         const hotelId = parts[1];
-        const hotelRes = await callGraphQL(GET_HOTEL, { id: hotelId });
-        const hotel = hotelRes.getHotel;
-        
+        const hotelRes: any = await client.graphql({ query: GET_HOTEL, variables: { id: hotelId } });
+        const hotel = hotelRes.data.getHotel;
         if (hotel) {
-          await callGraphQL(UPDATE_HOTEL_CHAT, { id: hotelId, chatId });
-          await bot.sendMessage(chatId, `✅ Hello ${userName}! Linked to **${hotel.name}**.\nType /new to start.`);
+          await client.graphql({ query: UPDATE_HOTEL_CHAT, variables: { id: hotelId, chatId } });
+          await bot.sendMessage(chatId, `✅ Hello ${userName}! Linked to **${hotel.name}**.`);
           return { statusCode: 200, body: 'OK' };
         }
       }
@@ -208,19 +202,15 @@ export const handler: Handler = async (event) => {
     }
 
     if (text === '/new' || text === '/nueva') {
-      const hotelsRes = await callGraphQL(LIST_HOTELS_BY_CHAT, { chatId });
-      const hotels = hotelsRes.listHotels.items;
-      
+      const hotelsRes: any = await client.graphql({ query: LIST_HOTELS_BY_CHAT, variables: { chatId } });
+      const hotels = hotelsRes.data.listHotels.items;
       if (hotels.length === 0) {
         await bot.sendMessage(chatId, "⚠️ Hotel not linked.");
         return { statusCode: 200, body: 'OK' };
       }
-      
-      const posRes = await callGraphQL(LIST_POSITIONS);
-      const positions = posRes.listPositions.items;
-      
+      const posRes: any = await client.graphql({ query: LIST_POSITIONS });
+      const positions = posRes.data.listPositions.items;
       const buttons = positions.map((p: any) => ([{ text: p.name, callback_data: `p_${p.id}` }]));
-      buttons.push([{ text: '❌ Cancel', callback_data: 'c' }]);
       await bot.sendMessage(chatId, `📋 **Step 1/5**: Select position for **${hotels[0].name}**:`, { reply_markup: { inline_keyboard: buttons } });
       return { statusCode: 200, body: 'OK' };
     }
@@ -229,12 +219,8 @@ export const handler: Handler = async (event) => {
   } catch (error: any) {
     console.error('Bot Error:', error);
     if (chatId !== '0') {
-      try {
-        const errorDetail = error.message || JSON.stringify(error, null, 2);
-        await bot.sendMessage(chatId, `❌ **Bot Error Details:**\n\`\`\`json\n${errorDetail}\n\`\`\``);
-      } catch (e) {
-        await bot.sendMessage(chatId, `❌ **Critical Error:**\n${error.message || 'Unknown error'}`);
-      }
+      const errorMsg = error.message || JSON.stringify(error);
+      await bot.sendMessage(chatId, `❌ **Bot Error:**\n\`\`\`\n${errorMsg}\n\`\`\``);
     }
     return { statusCode: 500, body: 'Error' };
   }
