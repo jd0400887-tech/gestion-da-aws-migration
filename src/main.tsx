@@ -14,7 +14,8 @@ import outputs from '../amplify_outputs.json';
 
 try {
   Amplify.configure(outputs);
-  console.info('🚀 OranjeApp: Conectada a AWS Cloud (Virginia) con éxito.');
+  const region = (outputs as any).auth?.aws_region || 'AWS Cloud';
+  console.info(`🚀 OranjeApp: Conectada a ${region} con éxito.`);
 } catch (e) {
   console.error('❌ Error configurando AWS:', e);
 }
