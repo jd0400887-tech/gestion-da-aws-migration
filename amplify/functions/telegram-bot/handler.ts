@@ -144,14 +144,22 @@ export const handler: Handler = async (event) => {
       await telegram(token, 'sendMessage', { chat_id: chatId, text: "🚀 Welcome! Use the dashboard to link this bot to your hotel." });
     }
 
-    if (text === '/new') {
+    if (text === '/new' || !text.startsWith('/')) {
       const hotelRes = await callGraphQL(LIST_HOTELS_BY_CHAT, { chatId });
       if (hotelRes.listHotels.items.length > 0) {
+        const hotel = hotelRes.listHotels.items[0];
         const posRes = await callGraphQL(LIST_POSITIONS);
         const buttons = posRes.listPositions.items.map((p: any) => ([{ text: p.name, callback_data: `p_${p.id}` }]));
-        await telegram(token, 'sendMessage', { chat_id: chatId, text: `📋 **Step 1/5**: Select position for **${hotelRes.listHotels.items[0].name}**:`, reply_markup: { inline_keyboard: buttons } });
-      } else {
+        buttons.push([{ text: '❌ Cancel', callback_data: 'c' }]);
+        await telegram(token, 'sendMessage', { 
+          chat_id: chatId, 
+          text: `👋 **Hi!** Ready to create a request for **${hotel.name}**?\n\n📋 **Step 1/5**: Select position:`, 
+          reply_markup: { inline_keyboard: buttons } 
+        });
+      } else if (text === '/new') {
         await telegram(token, 'sendMessage', { chat_id: chatId, text: "⚠️ Hotel not linked." });
+      } else if (!text.startsWith('/')) {
+        await telegram(token, 'sendMessage', { chat_id: chatId, text: "🚀 Welcome! Please use the link from your dashboard to link this bot to your hotel." });
       }
     }
 
