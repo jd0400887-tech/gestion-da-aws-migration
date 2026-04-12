@@ -26,12 +26,12 @@ export const staffingService = {
         .map(r => ({
           id: String(r.id),
           request_number: r.request_number || 'SR-N/A',
-          created_at: r.createdAt || new Date().toISOString(),
+          created_at: (r as any).createdAt || new Date().toISOString(),
           hotel_id: r.hotel_id || '',
           request_type: (r.request_type as any) || 'temporal',
           num_of_people: Number(r.num_of_people) || 1,
           role: r.role || 'Sin cargo',
-          priority: (r.priority as any) || 'Normal',
+          priority: (r.priority as any) || 'medium',
           shift_time: r.shift_time || '',
           start_date: r.start_date || new Date().toISOString().split('T')[0],
           status: (r.status as any) || 'Pendiente',
@@ -51,6 +51,7 @@ export const staffingService = {
       const currentYear = new Date().getFullYear().toString().slice(-2);
       const randomPart = Math.floor(Math.random() * 1000).toString().padStart(3, '0');
       const request_number = `SR${currentYear}-${randomPart}`;
+      const now = new Date().toISOString().split('T')[0];
 
       const { data: newReq, errors } = await client.models.StaffingRequest.create({
         request_number,
@@ -58,17 +59,22 @@ export const staffingService = {
         request_type: request.request_type || 'temporal',
         num_of_people: Math.max(1, Number(request.num_of_people)),
         role: request.role || 'Sin cargo',
-        priority: request.priority || 'Normal',
-        shift_time: request.shift_time || '',
-        start_date: request.start_date,
+        priority: request.priority || 'medium',
+        shift_time: request.shift_time || '07:00',
+        start_date: request.start_date || now,
+        request_date: now,
         status: 'Pendiente',
-        notes: request.notes || ''
+        notes: request.notes || '',
+        is_archived: false
       });
 
-      if (errors) throw new Error("AWS rechazó la creación.");
+      if (errors || !newReq) {
+        console.error('Detalle de error AWS:', errors);
+        throw new Error("AWS rechazó la creación de la solicitud.");
+      }
 
       // REGISTRAR HISTORIAL INICIAL
-      await this.addHistory(newReq.id, `Solicitud creada en estado Pendiente`, userName);
+      await this.addHistory(newReq.id, `Solicitud creada en estado Pendiente vía ${userName}`, userName);
 
       return newReq.id;
     } catch (error: any) {
@@ -95,18 +101,18 @@ export const staffingService = {
       if (updates.status) {
         input.status = updates.status;
         changeLog.push(`Estado cambiado a: ${updates.status}`);
-        if (updates.status === 'Completada') input.completed_at = new Date().toISOString();
       }
       if (updates.notes !== undefined) input.notes = updates.notes || '';
       if (updates.priority) input.priority = updates.priority;
       if (updates.shift_time !== undefined) input.shift_time = updates.shift_time || '';
 
       const { errors } = await client.models.StaffingRequest.update(input);
-      if (errors) throw new Error("AWS rechazó la actualización.");
+      if (errors) {
+        console.error('Detalle de error AWS Update:', errors);
+        throw new Error("AWS rechazó la actualización.");
+      }
 
-      // REGISTRAR HISTORIAL UNIFICADO (Evita duplicados si cambian varias cosas)
       if (changeLog.length > 0) {
-        // Si hay varios cambios, los unimos en una sola entrada profesional
         const fullDescription = changeLog.join(" | ");
         await this.addHistory(id, fullDescription, userName);
       }
@@ -125,9 +131,6 @@ export const staffingService = {
     }
   },
 
-  /**
-   * HISTORIAL: Guardar un evento
-   */
   async addHistory(requestId: string, description: string, userName: string): Promise<void> {
     try {
       const client = this.getClient();
@@ -142,9 +145,6 @@ export const staffingService = {
     }
   },
 
-  /**
-   * HISTORIAL: Obtener eventos de una solicitud
-   */
   async getHistory(requestId: string): Promise<any[]> {
     try {
       const client = this.getClient();

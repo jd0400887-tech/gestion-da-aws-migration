@@ -4,15 +4,14 @@ import type { Schema } from '../../amplify/data/resource';
 
 export interface Application {
   id: string;
-  created_at: string;
-  candidate_id: string;
-  request_id: string;
+  candidate_name: string;
+  phone: string;
+  email?: string;
+  hotel_id: string;
+  role: string;
   status: 'pendiente' | 'completada' | 'empleado_creado';
-  completed_at: string | null;
-  candidate_name?: string;
-  phone?: string;
-  hotel_id?: string;
-  role?: string;
+  applied_at?: string;
+  notes?: string;
 }
 
 export const useApplications = () => {
@@ -24,28 +23,18 @@ export const useApplications = () => {
     try {
       const client = generateClient<Schema>();
       const { data: apps } = await client.models.Application.list();
-      const { data: candidates } = await client.models.Candidate.list();
-      const { data: requests } = await client.models.StaffingRequest.list();
-
-      const formattedData = apps.map(app => {
-        const candidate = candidates.find(c => c.id === app.candidate_id);
-        const request = requests.find(r => r.id === app.request_id);
-        
-        return {
-          id: app.id,
-          created_at: app.applied_at,
-          candidate_id: app.candidate_id,
-          request_id: app.request_id,
-          status: (app.status as any) || 'pendiente',
-          completed_at: null,
-          candidate_name: candidate?.name || 'N/A',
-          phone: candidate?.phone || 'N/A',
-          hotel_id: request?.hotel_id || 'N/A',
-          role: request?.role || 'N/A',
-        };
-      });
-
-      setApplications(formattedData as Application[]);
+      
+      setApplications(apps.map(app => ({
+        id: app.id,
+        candidate_name: app.candidate_name,
+        phone: app.phone,
+        email: app.email || undefined,
+        hotel_id: app.hotel_id,
+        role: app.role,
+        status: (app.status as any) || 'pendiente',
+        applied_at: app.applied_at || undefined,
+        notes: app.notes || undefined
+      })));
     } catch (error) {
       console.error('Error fetching applications from AWS:', error);
       setApplications([]);
@@ -82,33 +71,19 @@ export const useApplications = () => {
     }
   };
 
-  const addApplication = async (applicationData: { candidate_name: string; hotel_id: string; role: string }) => {
+  const addApplication = async (applicationData: Partial<Application>) => {
     try {
       const client = generateClient<Schema>();
       
-      const { data: candidate } = await client.models.Candidate.create({
-        name: applicationData.candidate_name,
-        role: applicationData.role,
-        status: 'Postulado'
-      });
-
-      if (!candidate) throw new Error("Error al crear candidato");
-
-      const { data: request } = await client.models.StaffingRequest.create({
-        request_number: `APP-${Date.now()}`,
-        hotel_id: applicationData.hotel_id,
-        role: applicationData.role,
-        start_date: new Date().toISOString().split('T')[0],
-        status: 'Pendiente'
-      });
-
-      if (!request) throw new Error("Error al crear solicitud");
-
       await client.models.Application.create({
-        candidate_id: candidate.id,
-        request_id: request.id,
+        candidate_name: applicationData.candidate_name || 'N/A',
+        phone: applicationData.phone || 'N/A',
+        email: applicationData.email,
+        hotel_id: applicationData.hotel_id || '',
+        role: applicationData.role || '',
         status: 'pendiente',
-        applied_at: new Date().toISOString()
+        applied_at: new Date().toISOString(),
+        notes: applicationData.notes
       });
 
       await fetchApplications();

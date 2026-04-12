@@ -30,20 +30,30 @@ export default function S3Image({ path, alt, style, height, className }: S3Image
 
       let s3Path = path;
 
-      // SI ES UNA URL DE S3 (Legacy Fix)
-      if (path.includes('s3.amazonaws.com') || path.includes('.s3.')) {
+      // SI ES UNA URL DE S3 (Legacy Fix profunda)
+      if (path.includes('s3.amazonaws.com') || path.includes('.s3.') || path.includes('?X-Amz-Algorithm')) {
         try {
-          const urlObj = new URL(path);
-          // Eliminamos el primer slash y los query parameters
-          const cleanPath = urlObj.pathname.startsWith('/') ? urlObj.pathname.substring(1) : urlObj.pathname;
+          // Extraemos la ruta ignorando los query parameters
+          const cleanPathOnly = path.split('?')[0];
+          const urlObj = new URL(cleanPathOnly.startsWith('http') ? cleanPathOnly : `https://${cleanPathOnly}`);
           
-          // Buscamos donde empieza 'hotel-images'
-          const imagesIndex = cleanPath.indexOf('hotel-images/');
-          if (imagesIndex !== -1) {
-            s3Path = cleanPath.substring(imagesIndex);
-          } else {
-            s3Path = cleanPath;
+          let pathname = urlObj.pathname;
+          if (pathname.startsWith('/')) pathname = pathname.substring(1);
+          
+          // El path real en el bucket suele empezar en 'hotel-images' o 'employee-docs'
+          const markers = ['hotel-images/', 'employee-docs/'];
+          let foundMarker = false;
+          
+          for (const marker of markers) {
+            const index = pathname.indexOf(marker);
+            if (index !== -1) {
+              s3Path = pathname.substring(index);
+              foundMarker = true;
+              break;
+            }
           }
+          
+          if (!foundMarker) s3Path = pathname;
         } catch (e) {
           console.warn("Error parseando URL legacy de S3:", e);
         }
