@@ -1,8 +1,8 @@
 import type { Handler } from 'aws-lambda';
 
 /**
- * ORANJEBOT: SMART RECRUITMENT BOT
- * Optimizado para OranjeApp con fechas flexibles y branding 🍊.
+ * ORANJEBOT: SMART RECRUITMENT BOT 🍊
+ * Sincronizado con esquema RDS CamelCase.
  */
 
 async function telegram(token: string, method: string, body: any) {
@@ -31,7 +31,7 @@ async function callGraphQL(query: string, variables: any = {}) {
 const GET_HOTEL = `query GetHotel($id: ID!) { getHotel(id: $id) { id name } }`;
 const UPDATE_HOTEL_CHAT = `mutation UpdateHotelChat($id: ID!, $chatId: String!) { updateHotel(input: { id: $id, telegram_chat_id: $chatId }) { id name } }`;
 const LIST_HOTELS_BY_CHAT = `query ListHotels($chatId: String!) { listHotels(filter: { telegram_chat_id: { eq: $chatId } }) { items { id name } } }`;
-const LIST_POSITIONS = `query ListPositions { listPositions(filter: { is_active: { eq: true } }) { items { id name } } }`;
+const LIST_POSITIONS = `query ListPositions { listPositions(filter: { isActive: { eq: true } }) { items { id name } } }`;
 const GET_POSITION = `query GetPosition($id: ID!) { getPosition(id: $id) { id name } }`;
 const CREATE_REQUEST = `mutation CreateRequest($input: CreateStaffingRequestInput!) { createStaffingRequest(input: $input) { id request_number } }`;
 
@@ -48,7 +48,6 @@ export const handler: Handler = async (event) => {
 
     if (!token) return { statusCode: 500, body: 'Token Error' };
 
-    // --- CALLBACK QUERIES (Botones) ---
     if (body.callback_query) {
       const cb = body.callback_query;
       const data = cb.data || '';
@@ -81,8 +80,6 @@ export const handler: Handler = async (event) => {
 
       if (data.startsWith('t_')) {
         const [_, posId, qty, type] = data.split('_');
-        
-        // Generar botones de fecha dinámicos (Hoy, Mañana, +2, +3 días)
         const dates = [];
         for (let i = 0; i < 4; i++) {
           const d = new Date();
@@ -91,20 +88,12 @@ export const handler: Handler = async (event) => {
           const label = i === 0 ? 'Hoy' : (i === 1 ? 'Mañana' : dateStr);
           dates.push([{ text: `📅 ${label}`, callback_data: `d_${posId}_${qty}_${type}_${dateStr}` }]);
         }
-        dates.push([{ text: '❓ Otra fecha (Escríbela)', callback_data: `manual_date_${posId}_${qty}_${type}` }]);
         dates.push([{ text: '❌ Cancelar', callback_data: 'c' }]);
 
         await telegram(token, 'sendMessage', {
           chat_id: chatId,
           text: `🍊 **Paso 4/5**: ¿Cuándo deben iniciar?`,
           reply_markup: { inline_keyboard: dates }
-        });
-      }
-
-      if (data.startsWith('manual_date_')) {
-        await telegram(token, 'sendMessage', {
-          chat_id: chatId,
-          text: "📝 Por favor, responde a este mensaje con la fecha deseada (Ej: 2026-05-15):"
         });
       }
 
@@ -131,9 +120,10 @@ export const handler: Handler = async (event) => {
 
         if (hotel && pos) {
           const request_number = `SR${new Date().getFullYear().toString().slice(-2)}-${Math.floor(Math.random()*900)+100}`;
+          const now = new Date().toISOString().split('T')[0];
           await callGraphQL(CREATE_REQUEST, { input: {
             request_number, hotel_id: hotel.id, role: pos.name, num_of_people: parseInt(qty),
-            request_type: type === 'temp' ? 'temporal' : 'permanente', start_date: date, shift_time: time, status: 'Pendiente'
+            request_type: type === 'temp' ? 'temporal' : 'permanente', start_date: date, request_date: now, shift_time: time, status: 'Pendiente'
           }});
           await telegram(token, 'sendMessage', { 
             chat_id: chatId, 
@@ -147,7 +137,6 @@ export const handler: Handler = async (event) => {
       return { statusCode: 200, body: 'OK' };
     }
 
-    // --- COMANDOS Y MENSAJES ---
     const text = body.message?.text || '';
     if (text.startsWith('/start')) {
       const hotelId = text.split(' ')[1];
@@ -167,8 +156,6 @@ export const handler: Handler = async (event) => {
       if (hotelRes.listHotels.items.length > 0) {
         const hotel = hotelRes.listHotels.items[0];
         const posRes = await callGraphQL(LIST_POSITIONS);
-        
-        // Botones Inline
         const buttons = posRes.listPositions.items.map((p: any) => ([{ text: `🍊 ${p.name}`, callback_data: `p_${p.id}` }]));
         buttons.push([{ text: '❌ Cancelar', callback_data: 'c' }]);
 
