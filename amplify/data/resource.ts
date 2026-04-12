@@ -112,7 +112,10 @@ const schema = a.schema({
     notes: a.string(),
     is_archived: a.boolean().default(false),
     history: a.hasMany('StaffingRequestHistory', 'request_id'),
-  }).authorization((allow) => [allow.authenticated()]),
+  }).authorization((allow) => [
+    allow.authenticated(),
+    allow.publicApiKey().to(['create', 'read']) // Permitir crear y leer vía API Key para la Mini App
+  ]),
 
   StaffingRequestHistory: a.model({
     id: a.id(),

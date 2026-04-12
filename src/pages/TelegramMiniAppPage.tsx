@@ -22,8 +22,11 @@ import { usePositions } from '../hooks/usePositions';
 
 export default function TelegramMiniAppPage() {
   const { hotels } = useHotels();
-  const { positions } = usePositions();
+  const { positions: allPositions } = usePositions();
   
+  // Filtrar solo cargos activos para el portal
+  const positions = useMemo(() => allPositions.filter(p => p.isActive), [allPositions]);
+
   const [activeStep, setActiveStep] = useState(0);
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
@@ -39,7 +42,7 @@ export default function TelegramMiniAppPage() {
     time: '07:00'
   });
 
-  const steps = ['Hotel', 'Cargo', 'Detalles', 'Confirmar'];
+  const steps = ['Hotel', 'Position', 'Details', 'Confirm'];
 
   const handleNext = () => setActiveStep((prev) => prev + 1);
   const handleBack = () => setActiveStep((prev) => prev - 1);
@@ -48,24 +51,30 @@ export default function TelegramMiniAppPage() {
     setLoading(true);
     setError(null);
     try {
+      // FORZAMOS AUTH MODE API KEY PARA ACCESO PÚBLICO
       const client = generateClient<Schema>();
       const request_number = `SR${new Date().getFullYear().toString().slice(-2)}-${Math.floor(Math.random()*900)+100}`;
       
       await client.models.StaffingRequest.create({
         request_number,
-        hotel_id: formData.hotel_id,
+        hotelId: formData.hotel_id,
         role: formData.role,
-        quantity: formData.quantity,
+        num_of_people: formData.quantity,
         status: 'Pendiente',
         priority: 'medium',
         request_date: new Date().toISOString().split('T')[0],
-        required_date: formData.date,
-        notes: `Solicitud creada vía Oranje Portal (Telegram Mini App). Turno: ${formData.time}`,
+        start_date: formData.date,
+        shift_time: formData.time,
+        request_type: formData.type,
+        notes: `Request created via Oranje Portal (Telegram Mini App). Shift: ${formData.time}`,
+      }, {
+        authMode: 'apiKey' // INDISPENSABLE PARA QUE FUNCIONE SIN LOGIN
       });
 
       setSuccess(true);
     } catch (err: any) {
-      setError(err.message || "Error al crear la solicitud");
+      console.error("Submission error:", err);
+      setError(err.message || "Error creating the request. Please try again.");
     } finally {
       setLoading(false);
     }
@@ -79,12 +88,12 @@ export default function TelegramMiniAppPage() {
             <Avatar sx={{ width: 80, height: 80, bgcolor: 'success.main', mx: 'auto', mb: 3 }}>
               <CheckCircleOutlineIcon sx={{ fontSize: 50 }} />
             </Avatar>
-            <Typography variant="h5" sx={{ fontWeight: 900, mb: 1 }}>🍊 ¡Listo!</Typography>
+            <Typography variant="h5" sx={{ fontWeight: 900, mb: 1 }}>🍊 Request Sent!</Typography>
             <Typography variant="body1" color="text.secondary" sx={{ mb: 4 }}>
-              Tu solicitud ha sido enviada al equipo de reclutamiento.
+              The recruiting team has received your request and is already working on it.
             </Typography>
-            <Button variant="contained" fullWidth onClick={() => window.location.reload()} sx={{ borderRadius: 3, py: 1.5, fontWeight: 'bold' }}>
-              Hacer otra solicitud
+            <Button variant="contained" fullWidth onClick={() => window.location.reload()} sx={{ borderRadius: 3, py: 1.5, fontWeight: 'bold', textTransform: 'none' }}>
+              Create Another Request
             </Button>
           </Paper>
         </motion.div>
@@ -99,7 +108,7 @@ export default function TelegramMiniAppPage() {
         <Stack direction="row" justifyContent="space-between" alignItems="center">
           <Box>
             <Typography variant="h6" sx={{ fontWeight: 900 }}>Oranje Portal 🍊</Typography>
-            <Typography variant="caption" sx={{ opacity: 0.7 }}>Nueva Solicitud de Personal</Typography>
+            <Typography variant="caption" sx={{ opacity: 0.7 }}>New Staffing Request</Typography>
           </Box>
           <Avatar src="/vite.svg" sx={{ width: 32, height: 32 }} />
         </Stack>
@@ -120,26 +129,26 @@ export default function TelegramMiniAppPage() {
             {activeStep === 0 && (
               <motion.div key="step0" initial={{ x: 20, opacity: 0 }} animate={{ x: 0, opacity: 1 }} exit={{ x: -20, opacity: 0 }}>
                 <Typography variant="subtitle2" sx={{ fontWeight: 800, mb: 2, display: 'flex', alignItems: 'center', gap: 1 }}>
-                  <ApartmentIcon color="primary" fontSize="small" /> ¿Para qué hotel?
+                  <ApartmentIcon color="primary" fontSize="small" /> Select Hotel
                 </Typography>
                 <Autocomplete
                   options={hotels}
                   getOptionLabel={(option) => option.name}
                   value={hotels.find(h => h.id === formData.hotel_id) || null}
                   onChange={(_, val) => setFormData({ ...formData, hotel_id: val?.id || '' })}
-                  renderInput={(params) => <TextField {...params} label="Selecciona el Hotel" variant="outlined" sx={{ '& .MuiOutlinedInput-root': { borderRadius: 3 } }} />}
+                  renderInput={(params) => <TextField {...params} label="Choose your hotel" variant="outlined" sx={{ '& .MuiOutlinedInput-root': { borderRadius: 3 } }} />}
                 />
-                <Button disabled={!formData.hotel_id} variant="contained" fullWidth onClick={handleNext} sx={{ mt: 4, py: 1.5, borderRadius: 3, fontWeight: 'bold' }}>Continuar</Button>
+                <Button disabled={!formData.hotel_id} variant="contained" fullWidth onClick={handleNext} sx={{ mt: 4, py: 1.5, borderRadius: 3, fontWeight: 'bold', textTransform: 'none' }}>Next Step</Button>
               </motion.div>
             )}
 
             {activeStep === 1 && (
               <motion.div key="step1" initial={{ x: 20, opacity: 0 }} animate={{ x: 0, opacity: 1 }} exit={{ x: -20, opacity: 0 }}>
                 <Typography variant="subtitle2" sx={{ fontWeight: 800, mb: 2, display: 'flex', alignItems: 'center', gap: 1 }}>
-                  <WorkIcon color="primary" fontSize="small" /> ¿Qué cargo necesitas?
+                  <WorkIcon color="primary" fontSize="small" /> Select Position
                 </Typography>
                 <Stack spacing={1}>
-                  {positions.map((pos) => (
+                  {positions.length > 0 ? positions.map((pos) => (
                     <Paper 
                       key={pos.id} 
                       onClick={() => { setFormData({ ...formData, role: pos.name }); handleNext(); }}
@@ -152,18 +161,23 @@ export default function TelegramMiniAppPage() {
                     >
                       <Typography variant="body2" sx={{ fontWeight: 700 }}>{pos.name}</Typography>
                     </Paper>
-                  ))}
+                  )) : (
+                    <Box sx={{ py: 4, textAlign: 'center', opacity: 0.5 }}>
+                      <CircularProgress size={20} sx={{ mb: 1 }} />
+                      <Typography variant="caption" display="block">Loading positions...</Typography>
+                    </Box>
+                  )}
                 </Stack>
-                <Button onClick={handleBack} sx={{ mt: 2, color: 'text.secondary', fontWeight: 'bold' }}>Regresar</Button>
+                <Button onClick={handleBack} sx={{ mt: 2, color: 'text.secondary', fontWeight: 'bold', textTransform: 'none' }}>Go Back</Button>
               </motion.div>
             )}
 
             {activeStep === 2 && (
               <motion.div key="step2" initial={{ x: 20, opacity: 0 }} animate={{ x: 0, opacity: 1 }} exit={{ x: -20, opacity: 0 }}>
-                <Typography variant="subtitle2" sx={{ fontWeight: 800, mb: 3 }}>Detalles de la Solicitud</Typography>
+                <Typography variant="subtitle2" sx={{ fontWeight: 800, mb: 3 }}>Request Details</Typography>
                 <Stack spacing={3}>
                   <Box>
-                    <Typography variant="caption" sx={{ fontWeight: 800, color: 'text.secondary', ml: 1 }}>PERSONAS</Typography>
+                    <Typography variant="caption" sx={{ fontWeight: 800, color: 'text.secondary', ml: 1 }}>PEOPLE NEEDED</Typography>
                     <Stack direction="row" spacing={2} sx={{ mt: 1 }}>
                       {[1, 2, 3, 5].map(n => (
                         <Avatar 
@@ -184,7 +198,7 @@ export default function TelegramMiniAppPage() {
 
                   <TextField
                     type="date"
-                    label="Fecha de Inicio"
+                    label="Start Date"
                     fullWidth
                     value={formData.date}
                     onChange={(e) => setFormData({ ...formData, date: e.target.value })}
@@ -193,12 +207,12 @@ export default function TelegramMiniAppPage() {
                   />
 
                   <Box>
-                    <Typography variant="caption" sx={{ fontWeight: 800, color: 'text.secondary', ml: 1 }}>TURNO</Typography>
+                    <Typography variant="caption" sx={{ fontWeight: 800, color: 'text.secondary', ml: 1 }}>SHIFT</Typography>
                     <Grid container spacing={1} sx={{ mt: 0.5 }}>
                       {[
-                        { t: '07:00', l: 'Mañana' },
-                        { t: '14:00', l: 'Tarde' },
-                        { t: '22:00', l: 'Noche' }
+                        { t: '07:00', l: 'Morning' },
+                        { t: '14:00', l: 'Afternoon' },
+                        { t: '22:00', l: 'Night' }
                       ].map(turno => (
                         <Grid item xs={4} key={turno.t}>
                           <Paper 
@@ -217,21 +231,21 @@ export default function TelegramMiniAppPage() {
                     </Grid>
                   </Box>
                 </Stack>
-                <Button variant="contained" fullWidth onClick={handleNext} sx={{ mt: 4, py: 1.5, borderRadius: 3, fontWeight: 'bold' }}>Revisar Solicitud</Button>
-                <Button onClick={handleBack} fullWidth sx={{ mt: 1, color: 'text.secondary', fontWeight: 'bold' }}>Regresar</Button>
+                <Button variant="contained" fullWidth onClick={handleNext} sx={{ mt: 4, py: 1.5, borderRadius: 3, fontWeight: 'bold', textTransform: 'none' }}>Review Request</Button>
+                <Button onClick={handleBack} fullWidth sx={{ mt: 1, color: 'text.secondary', fontWeight: 'bold', textTransform: 'none' }}>Go Back</Button>
               </motion.div>
             )}
 
             {activeStep === 3 && (
               <motion.div key="step3" initial={{ x: 20, opacity: 0 }} animate={{ x: 0, opacity: 1 }} exit={{ x: -20, opacity: 0 }}>
-                <Typography variant="subtitle2" sx={{ fontWeight: 800, mb: 2 }}>Confirmar Solicitud 🍊</Typography>
+                <Typography variant="subtitle2" sx={{ fontWeight: 800, mb: 2 }}>Confirm Request 🍊</Typography>
                 <Paper variant="outlined" sx={{ p: 2, borderRadius: 3, bgcolor: '#F8FAFC', mb: 3 }}>
                   <Stack spacing={1.5}>
                     <DetailRow icon={<ApartmentIcon fontSize="small"/>} label="Hotel" value={hotels.find(h => h.id === formData.hotel_id)?.name} />
-                    <DetailRow icon={<WorkIcon fontSize="small"/>} label="Cargo" value={formData.role} />
-                    <DetailRow icon={<PeopleIcon fontSize="small"/>} label="Cantidad" value={`${formData.quantity} Persona(s)`} />
-                    <DetailRow icon={<DateRangeIcon fontSize="small"/>} label="Inicio" value={formData.date} />
-                    <DetailRow icon={<AccessTimeIcon fontSize="small"/>} label="Turno" value={formData.time} />
+                    <DetailRow icon={<WorkIcon fontSize="small"/>} label="Position" value={formData.role} />
+                    <DetailRow icon={<PeopleIcon fontSize="small"/>} label="Quantity" value={`${formData.quantity} Person(s)`} />
+                    <DetailRow icon={<DateRangeIcon fontSize="small"/>} label="Start Date" value={formData.date} />
+                    <DetailRow icon={<AccessTimeIcon fontSize="small"/>} label="Shift" value={formData.time} />
                   </Stack>
                 </Paper>
 
@@ -243,14 +257,14 @@ export default function TelegramMiniAppPage() {
                   disabled={loading}
                   onClick={handleSubmit} 
                   sx={{ 
-                    py: 2, borderRadius: 3, fontWeight: 'bold',
+                    py: 2, borderRadius: 3, fontWeight: 'bold', textTransform: 'none',
                     background: 'linear-gradient(45deg, #FF5722 30%, #FF8A65 90%)',
                     boxShadow: '0 4px 15px rgba(255, 87, 34, 0.3)'
                   }}
                 >
-                  {loading ? <CircularProgress size={24} color="inherit" /> : 'Confirmar y Enviar'}
+                  {loading ? <CircularProgress size={24} color="inherit" /> : 'Confirm & Submit'}
                 </Button>
-                <Button onClick={handleBack} fullWidth sx={{ mt: 1, color: 'text.secondary', fontWeight: 'bold' }}>Regresar</Button>
+                <Button onClick={handleBack} fullWidth sx={{ mt: 1, color: 'text.secondary', fontWeight: 'bold', textTransform: 'none' }}>Go Back</Button>
               </motion.div>
             )}
           </AnimatePresence>

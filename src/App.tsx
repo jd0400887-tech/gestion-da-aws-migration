@@ -31,11 +31,12 @@ import { ProtectedRoute } from './components/common/ProtectedRoute';
 
 function AppContent() {
   const { authStatus } = useAuthenticator();
-
-  // Forzar tema claro para visibilidad garantizada
   const theme = lightTheme;
 
-  // 1. Si AWS está configurando, mostramos cargador gris claro
+  // Detectar si es la Mini App pública de Telegram
+  const isPublicMiniApp = window.location.pathname === '/solicitud-bot';
+
+  // 1. Si AWS está configurando, mostramos cargador
   if (authStatus === 'configuring') {
     return (
       <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh', backgroundColor: '#f5f5f5' }}>
@@ -44,7 +45,19 @@ function AppContent() {
     );
   }
 
-  // 2. Si NO está autenticado, el Authenticator de AWS toma el control
+  // 2. Si es la Mini App pública, la renderizamos DIRECTAMENTE (sin login)
+  if (isPublicMiniApp) {
+    return (
+      <HotelsProvider>
+        <ThemeProvider theme={theme}>
+          <CssBaseline />
+          <TelegramMiniAppPage />
+        </ThemeProvider>
+      </HotelsProvider>
+    );
+  }
+
+  // 3. Para el resto de la app, si NO está autenticado, mostramos el login
   if (authStatus !== 'authenticated') {
     return (
       <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh', backgroundColor: '#f5f5f5' }}>
@@ -53,7 +66,7 @@ function AppContent() {
     );
   }
 
-  // 3. SI ESTÁ AUTENTICADO, renderizamos la App sin bloqueos
+  // 4. SI ESTÁ AUTENTICADO (App Completa)
   return (
     <HotelsProvider>
       <StaffingRequestsProvider>
