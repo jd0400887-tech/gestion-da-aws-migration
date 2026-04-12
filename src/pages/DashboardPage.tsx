@@ -19,9 +19,9 @@ import EventAvailableIcon from '@mui/icons-material/EventAvailable';
 import VerifiedUserIcon from '@mui/icons-material/VerifiedUser';
 
 import { useHotels } from '../hooks/useHotels';
-import { useAttendance } from '../hooks/useAttendance';
 import { useAuth } from '../hooks/useAuth';
 import { useDashboardStats } from '../hooks/useDashboardStats';
+import { useAttendance } from '../hooks/useAttendance';
 import { generateClient } from 'aws-amplify/api';
 import type { Schema } from '../../amplify/data/resource';
 
@@ -103,15 +103,29 @@ function DashboardPage() {
     setIsCheckingIn(true);
     try {
       if (!navigator.geolocation) throw new Error("Geolocalización no soportada");
+      
       navigator.geolocation.getCurrentPosition(async (position) => {
-        const { latitude, longitude } = position.coords;
-        const result = await addRecord(latitude, longitude);
-        setSnackbarInfo({ open: true, message: "Asistencia registrada con éxito", severity: 'success' });
-        setIsCheckingIn(false);
+        try {
+          const { latitude, longitude } = position.coords;
+          const result = await addRecord(latitude, longitude);
+          
+          setSnackbarInfo({ 
+            open: true, 
+            message: `¡Visita registrada en ${result.hotelName}! Distancia: ${result.distance}m.`, 
+            severity: 'success' 
+          });
+        } catch (err: any) {
+          setSnackbarInfo({ open: true, message: err.message, severity: 'error' });
+        } finally {
+          setIsCheckingIn(false);
+        }
       }, (error) => {
-        setSnackbarInfo({ open: true, message: "Error de ubicación: " + error.message, severity: 'error' });
+        let msg = "Error de ubicación.";
+        if (error.code === 1) msg = "Debes permitir el acceso a tu ubicación.";
+        setSnackbarInfo({ open: true, message: msg, severity: 'error' });
         setIsCheckingIn(false);
-      });
+      }, { enableHighAccuracy: true });
+
     } catch (error: any) {
       setSnackbarInfo({ open: true, message: error.message, severity: 'error' });
       setIsCheckingIn(false);
@@ -228,8 +242,8 @@ function DashboardPage() {
           renderAdminDashboard()
         )}
       </Box>
-      {!isRecruiter && (
-        <Fab color="primary" aria-label="registrar asistencia" sx={{ position: 'fixed', bottom: 32, right: 32, background: 'linear-gradient(45deg, #FF5722 30%, #FF8A65 90%)', boxShadow: '0 4px 20px 0 rgba(255, 87, 34, 0.4)', transition: 'all 0.3s ease-in-out', '&:hover': { boxShadow: '0 6px 25px 0 rgba(255, 87, 34, 0.6)', transform: 'scale(1.1) rotate(5deg)' } }} onClick={handleCheckIn} disabled={isCheckingIn}>
+      {isInspector && (
+        <Fab color="primary" aria-label="registrar visita" sx={{ position: 'fixed', bottom: 32, right: 32, background: 'linear-gradient(45deg, #FF5722 30%, #FF8A65 90%)', boxShadow: '0 4px 20px 0 rgba(255, 87, 34, 0.4)', transition: 'all 0.3s ease-in-out', '&:hover': { boxShadow: '0 6px 25px 0 rgba(255, 87, 34, 0.6)', transform: 'scale(1.1) rotate(5deg)' } }} onClick={handleCheckIn} disabled={isCheckingIn}>
           {isCheckingIn ? <CircularProgress color="inherit" size={24} /> : <MyLocationIcon sx={{ fontSize: 28 }} />}
         </Fab>
       )}

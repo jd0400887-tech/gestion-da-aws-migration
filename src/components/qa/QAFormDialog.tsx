@@ -16,6 +16,7 @@ import PersonIcon from '@mui/icons-material/Person';
 import ApartmentIcon from '@mui/icons-material/Apartment';
 import SaveIcon from '@mui/icons-material/Save';
 import WarningIcon from '@mui/icons-material/Warning';
+import MeetingRoomIcon from '@mui/icons-material/MeetingRoom';
 
 import { QATemplate, QAQuestion } from '../../data/qaTemplates';
 import { useEmployees } from '../../hooks/useEmployees';
@@ -36,28 +37,37 @@ export default function QAFormDialog({ open, onClose, template, onSubmit }: QAFo
   const { hotels } = useHotels();
   
   // Estados del formulario
+  const [selectedHotelId, setSelectedHotelId] = useState<string>('');
   const [targetId, setTargetId] = useState<string>('');
+  const [roomNumber, setRoomNumber] = useState<string>('');
   const [answers, setAnswers] = useState<Record<string, 'pass' | 'fail' | 'na'>>({});
   const [notes, setNotes] = useState<string>('');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // Filtrar empleados/hoteles por zona del inspector
-  const filteredEmployees = useMemo(() => {
-    if (profile?.role === 'INSPECTOR') {
-      return employees.filter(e => {
-        const hotel = hotels.find(h => h.id === e.hotelId);
-        return hotel?.zone === profile.assigned_zone;
-      });
+  // Reiniciar selección al cambiar de hotel o abrir modal
+  useEffect(() => {
+    if (open) {
+      setSelectedHotelId('');
+      setTargetId('');
+      setRoomNumber('');
+      setAnswers({});
+      setNotes('');
     }
-    return employees;
-  }, [employees, hotels, profile]);
+  }, [open, template]);
 
+  // Filtrar hoteles por zona del inspector
   const filteredHotels = useMemo(() => {
     if (profile?.role === 'INSPECTOR') {
       return hotels.filter(h => h.zone === profile.assigned_zone);
     }
     return hotels;
   }, [hotels, profile]);
+
+  // Filtrar empleados basados en el hotel seleccionado
+  const filteredEmployees = useMemo(() => {
+    if (!selectedHotelId) return [];
+    return employees.filter(e => e.hotelId === selectedHotelId);
+  }, [employees, selectedHotelId]);
 
   // Cálculo del Score en tiempo real
   const score = useMemo(() => {
@@ -71,7 +81,7 @@ export default function QAFormDialog({ open, onClose, template, onSubmit }: QAFo
     template.questions.forEach(q => {
       const ans = answers[q.id];
       if (ans && ans !== 'na') {
-        const weight = q.isCritical ? 2 : 1;
+        const weight = q.isCritical ? 3 : 1; // PESO CRÍTICO x3
         totalWeight += weight;
         if (ans === 'pass') earnedWeight += weight;
       }
@@ -85,8 +95,22 @@ export default function QAFormDialog({ open, onClose, template, onSubmit }: QAFo
   };
 
   const handleSave = async () => {
-    if (!targetId) {
-      alert('Por favor selecciona el objetivo de la auditoría.');
+    // Si es auditoría de hotel, el target es el hotel. 
+    // Si es de staff/room, el target es el empleado.
+    const finalTargetId = template?.id === 'hotel' ? selectedHotelId : targetId;
+
+    if (!selectedHotelId) {
+      alert('Por favor selecciona el hotel.');
+      return;
+    }
+
+    if (template?.id !== 'hotel' && !targetId) {
+      alert('Por favor selecciona el trabajador a auditar.');
+      return;
+    }
+
+    if (template?.id === 'room' && !roomNumber) {
+      alert('Por favor ingresa el número de habitación.');
       return;
     }
     
@@ -94,7 +118,8 @@ export default function QAFormDialog({ open, onClose, template, onSubmit }: QAFo
     try {
       await onSubmit({
         type: template?.id,
-        target_id: targetId,
+        target_id: finalTargetId,
+        room_number: roomNumber,
         answers,
         score,
         notes,
@@ -140,36 +165,73 @@ export default function QAFormDialog({ open, onClose, template, onSubmit }: QAFo
       <DialogContent sx={{ p: 3, bgcolor: '#F8FAFC' }}>
         {/* SELECCIÓN DEL OBJETIVO */}
         <Paper sx={{ p: 3, mb: 4, borderRadius: 3, border: '1px solid rgba(0,0,0,0.05)' }}>
-          <Typography variant="subtitle2" sx={{ fontWeight: 'bold', mb: 2, display: 'flex', alignItems: 'center', gap: 1 }}>
-            {template.id === 'hotel' ? <ApartmentIcon color="primary" /> : <PersonIcon color="primary" />}
-            Seleccionar {template.id === 'hotel' ? 'Hotel' : 'Trabajador'}
-          </Typography>
-          
-          {template.id === 'hotel' ? (
-            <Autocomplete
-              options={filteredHotels}
-              getOptionLabel={(option) => option.name}
-              renderOption={(props, option) => (
-                <li {...props} key={option.id}>
-                  {option.name}
-                </li >
-              )}
-              onChange={(_, val) => setTargetId(val?.id || '')}
-              renderInput={(params) => <TextField {...params} label="Buscar Hotel..." size="small" />}
-            />
-          ) : (
-            <Autocomplete
-              options={filteredEmployees}
-              getOptionLabel={(option) => option.name}
-              renderOption={(props, option) => (
-                <li {...props} key={option.id}>
-                  {option.name}
-                </li >
-              )}
-              onChange={(_, val) => setTargetId(val?.id || '')}
-              renderInput={(params) => <TextField {...params} label="Buscar Empleado..." size="small" />}
-            />
-          )}
+          <Grid container spacing={2}>
+            <Grid item xs={12} sm={template.id === 'hotel' ? 12 : 6}>
+              <Typography variant="subtitle2" sx={{ fontWeight: 'bold', mb: 1, display: 'flex', alignItems: 'center', gap: 1 }}>
+                <ApartmentIcon color="primary" /> Seleccionar Hotel
+              </Typography>
+              <Autocomplete
+                options={filteredHotels}
+                getOptionLabel={(option) => option.name}
+                value={hotels.find(h => h.id === selectedHotelId) || null}
+                renderOption={(props, option) => (
+                  <li {...props} key={option.id}>{option.name}</li>
+                )}
+                onChange={(_, val) => {
+                  setSelectedHotelId(val?.id || '');
+                  setTargetId(''); // Resetear empleado al cambiar hotel
+                }}
+                renderInput={(params) => <TextField {...params} label="Hotel de la Auditoría" size="small" />}
+              />
+            </Grid>
+
+            {template.id !== 'hotel' && (
+              <Grid item xs={12} sm={6}>
+                <Typography variant="subtitle2" sx={{ fontWeight: 'bold', mb: 1, display: 'flex', alignItems: 'center', gap: 1 }}>
+                  <PersonIcon color="primary" /> Seleccionar Trabajador
+                </Typography>
+                <Autocomplete
+                  disabled={!selectedHotelId}
+                  options={filteredEmployees}
+                  getOptionLabel={(option) => option.name}
+                  value={employees.find(e => e.id === targetId) || null}
+                  renderOption={(props, option) => (
+                    <li {...props} key={option.id}>
+                      <Box>
+                        <Typography variant="body2" sx={{ fontWeight: 'bold' }}>{option.name}</Typography>
+                        <Typography variant="caption" color="text.secondary">{option.role}</Typography>
+                      </Box>
+                    </li>
+                  )}
+                  onChange={(_, val) => setTargetId(val?.id || '')}
+                  renderInput={(params) => (
+                    <TextField 
+                      {...params} 
+                      label={selectedHotelId ? "Buscar Empleado..." : "Primero selecciona un hotel"} 
+                      size="small" 
+                    />
+                  )}
+                />
+              </Grid>
+            )}
+
+            {template.id === 'room' && (
+              <Grid item xs={12}>
+                <Divider sx={{ my: 1 }} />
+                <Typography variant="subtitle2" sx={{ fontWeight: 'bold', mb: 1, display: 'flex', alignItems: 'center', gap: 1 }}>
+                  <MeetingRoomIcon color="primary" /> Detalle de Habitación
+                </Typography>
+                <TextField 
+                  fullWidth 
+                  label="Número de Habitación" 
+                  placeholder="Ej: 302, 415..." 
+                  size="small"
+                  value={roomNumber}
+                  onChange={(e) => setRoomNumber(e.target.value)}
+                />
+              </Grid>
+            )}
+          </Grid>
         </Paper>
 
         {/* LISTADO DE PREGUNTAS */}

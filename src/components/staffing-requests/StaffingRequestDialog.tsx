@@ -3,7 +3,7 @@ import {
   Dialog, DialogContent, DialogActions, Button, TextField, Select, MenuItem, 
   FormControl, InputLabel, Grid, Tabs, Tab, Box, 
   Typography, Chip, Stack, Autocomplete, InputAdornment, Divider, Paper, IconButton,
-  Avatar, Tooltip, CircularProgress, useTheme
+  Avatar, Tooltip, CircularProgress, useTheme, Snackbar, Alert
 } from '@mui/material';
 
 // Iconos
@@ -23,6 +23,8 @@ import AccessTimeIcon from '@mui/icons-material/AccessTime';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import CloseIcon from '@mui/icons-material/Close';
 import PersonSearchIcon from '@mui/icons-material/PersonSearch';
+import PublicIcon from '@mui/icons-material/Public';
+import WhatsAppIcon from '@mui/icons-material/WhatsApp';
 
 import { useHotels } from '../../hooks/useHotels';
 import { useEmployees } from '../../hooks/useEmployees';
@@ -31,6 +33,23 @@ import { useRequestCandidates } from '../../hooks/useRequestCandidates';
 import { useAuth } from '../../hooks/useAuth';
 import type { StaffingRequest, StaffingRequestHistory, RequestCandidate } from '../../types';
 import { getInitials } from '../../utils/stringUtils';
+
+// Lista de países para el selector premium
+const countries = [
+  { code: 'US', label: 'United States', phone: '1', flag: '🇺🇸' },
+  { code: 'MX', label: 'México', phone: '52', flag: '🇲🇽' },
+  { code: 'GT', label: 'Guatemala', phone: '502', flag: '🇬🇹' },
+  { code: 'HN', label: 'Honduras', phone: '504', flag: '🇭🇳' },
+  { code: 'SV', label: 'El Salvador', phone: '503', flag: '🇸🇻' },
+  { code: 'NI', label: 'Nicaragua', phone: '505', flag: '🇳🇮' },
+  { code: 'CR', label: 'Costa Rica', phone: '506', flag: '🇨🇷' },
+  { code: 'CO', label: 'Colombia', phone: '57', flag: '🇨🇴' },
+  { code: 'VE', label: 'Venezuela', phone: '58', flag: '🇻🇪' },
+  { code: 'CU', label: 'Cuba', phone: '53', flag: '🇨🇺' },
+  { code: 'DO', label: 'Rep. Dominicana', phone: '1', flag: '🇩🇴' },
+  { code: 'PR', label: 'Puerto Rico', phone: '1', flag: '🇵🇷' },
+  { code: 'CA', label: 'Canada', phone: '1', flag: '🇨🇦' },
+];
 
 interface StaffingRequestDialogProps {
   open: boolean;
@@ -59,13 +78,18 @@ export default function StaffingRequestDialog({ open, onClose, onSubmit, initial
   const [history, setHistory] = useState<StaffingRequestHistory[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
   
+  // Alertas
+  const [snackbar, setSnackbar] = useState({ open: false, message: '', severity: 'info' as 'info' | 'error' | 'success' });
+  
   const { hotels } = useHotels();
   const { employees, roles = [] } = useEmployees(); 
-  const { fetchHistory } = useStaffingRequestsContext();
+  const { fetchHistory, fetchRequests } = useStaffingRequestsContext();
   const { profile } = useAuth();
   const { candidates, loading: candidatesLoading, addCandidate, updateCandidateStatus, deleteCandidate } = useRequestCandidates(initialData?.id ? String(initialData.id) : null);
 
   const [newCandidateName, setNewCandidateName] = useState('');
+  const [newCandidatePhone, setNewCandidatePhone] = useState('');
+  const [selectedCountry, setSelectedCountry] = useState(countries[0]);
   const [selectedExistingEmployeeId, setSelectedExistingEmployeeId] = useState<string | null>(null);
   
   const isInspector = profile?.role === 'INSPECTOR';
@@ -98,7 +122,11 @@ export default function StaffingRequestDialog({ open, onClose, onSubmit, initial
 
   const handleTabChange = (_e: any, newValue: number) => setTab(newValue);
 
-  // Asegurar que el rol actual esté en la lista para evitar errores de MUI
+  const handlePhoneChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value.replace(/\D/g, '').slice(0, 15); // Hasta 15 dígitos para internacional
+    setNewCandidatePhone(value);
+  };
+
   const rolesOptions = useMemo(() => {
     const list = [...roles];
     if (formData.role && !list.includes(formData.role)) {
@@ -109,11 +137,11 @@ export default function StaffingRequestDialog({ open, onClose, onSubmit, initial
 
   const handleSubmit = async () => {
     if (!formData.hotel_id) {
-      alert("Por favor seleccione un hotel destino.");
+      setSnackbar({ open: true, message: "Por favor seleccione un hotel destino.", severity: 'error' });
       return;
     }
     if (!initialData && !roles.includes(formData.role)) {
-      alert("Por favor seleccione un cargo oficial.");
+      setSnackbar({ open: true, message: "Por favor seleccione un cargo oficial.", severity: 'error' });
       return;
     }
     setIsSubmitting(true);
@@ -122,6 +150,75 @@ export default function StaffingRequestDialog({ open, onClose, onSubmit, initial
       onClose();
     } finally {
       setIsSubmitting(false);
+    }
+  };
+
+  const handleAddExternal = async () => {
+    if (!newCandidateName.trim()) {
+      setSnackbar({ open: true, message: 'Ingrese el nombre del candidato', severity: 'error' });
+      return;
+    }
+
+    const cleanPhone = newCandidatePhone.replace(/\D/g, '');
+    if (cleanPhone && cleanPhone.length < 8) {
+      setSnackbar({ open: true, message: 'Teléfono demasiado corto', severity: 'error' });
+      return;
+    }
+
+    if (initialData?.id) { 
+      try {
+        const formattedPhone = cleanPhone ? `+${selectedCountry.phone} ${cleanPhone}` : 'N/A';
+        
+        await addCandidate({ 
+          request_id: String(initialData.id), 
+          candidate_name: newCandidateName, 
+          phone: formattedPhone,
+          existing_employee_id: null 
+        }, formData.request_type); 
+        
+        setNewCandidateName(''); 
+        setNewCandidatePhone('');
+        setSnackbar({ open: true, message: 'Candidato externo añadido', severity: 'success' });
+        fetchRequests();
+      } catch (e: any) {
+        setSnackbar({ open: true, message: e.message, severity: 'error' });
+      }
+    }
+  };
+
+  const handleAssignExisting = async () => {
+    if (selectedExistingEmployeeId && initialData?.id) { 
+      try {
+        await addCandidate({ 
+          request_id: String(initialData.id), 
+          candidate_name: null, 
+          existing_employee_id: selectedExistingEmployeeId 
+        }, formData.request_type); 
+        setSelectedExistingEmployeeId(null); 
+        setSnackbar({ open: true, message: 'Empleado asignado correctamente', severity: 'success' });
+        fetchRequests();
+      } catch (e: any) {
+        setSnackbar({ open: true, message: e.message, severity: 'error' });
+      }
+    }
+  };
+
+  const handleUpdateCandidateStatus = async (id: string, status: string) => {
+    try {
+      await updateCandidateStatus(id, status);
+      setSnackbar({ open: true, message: 'Estado actualizado', severity: 'success' });
+    } catch (e: any) {
+      setSnackbar({ open: true, message: 'Error al actualizar estado', severity: 'error' });
+    }
+  };
+
+  const handleDeleteCandidate = async (id: string) => {
+    try {
+      await deleteCandidate(id);
+      setSnackbar({ open: true, message: 'Candidato removido', severity: 'success' });
+      fetchRequests();
+    } catch (e: any) {
+      setSnackbar({ open: true, message: 'Error al remover candidato', severity: 'error' });
     }
   };
 
@@ -172,7 +269,6 @@ export default function StaffingRequestDialog({ open, onClose, onSubmit, initial
       <DialogContent sx={{ mt: 2, px: 3 }}>
         {tab === 0 && (
           <Grid container spacing={2.5}>
-            {/* 1. UBICACIÓN */}
             <Grid item xs={12}>
               <Paper elevation={0} sx={{ p: 2, borderRadius: 3, background: 'linear-gradient(135deg, rgba(255, 87, 34, 0.08) 0%, rgba(255, 255, 255, 0) 100%)', border: '1px solid rgba(255, 87, 34, 0.1)' }}>
                 <Stack spacing={2}>
@@ -198,7 +294,6 @@ export default function StaffingRequestDialog({ open, onClose, onSubmit, initial
               </Paper>
             </Grid>
 
-            {/* 2. PERFIL REQUERIDO */}
             <Grid item xs={12}>
               <Paper elevation={0} sx={{ p: 2, borderRadius: 3, background: 'linear-gradient(135deg, rgba(33, 150, 243, 0.08) 0%, rgba(255, 255, 255, 0) 100%)', border: '1px solid rgba(33, 150, 243, 0.1)' }}>
                 <Grid container spacing={2}>
@@ -237,7 +332,6 @@ export default function StaffingRequestDialog({ open, onClose, onSubmit, initial
               </Paper>
             </Grid>
 
-            {/* 3. LOGÍSTICA Y ESTADO */}
             <Grid item xs={12}>
               <Paper elevation={0} sx={{ p: 2, borderRadius: 3, bgcolor: isLight ? '#f8fafc' : 'rgba(255,255,255,0.03)', border: '1px solid rgba(0,0,0,0.05)' }}>
                 <Grid container spacing={2}>
@@ -285,30 +379,56 @@ export default function StaffingRequestDialog({ open, onClose, onSubmit, initial
               <Typography variant="subtitle2" sx={{ fontWeight: 900, mb: 2 }}>ASIGNAR PERSONAL</Typography>
               <Stack spacing={2}>
                 <Box>
-                  <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 800 }}>CANDIDATO EXTERNO (NUEVO)</Typography>
-                  <Stack direction="row" spacing={1} sx={{ mt: 0.5 }}>
-                    <TextField fullWidth size="small" placeholder="Nombre completo..." value={newCandidateName} onChange={(e) => setNewCandidateName(e.target.value)} sx={inputStyles} />
-                    <Button 
-                      variant="contained" 
-                      onClick={async () => { 
-                        if (newCandidateName && initialData?.id) { 
-                          try {
-                            await addCandidate({ 
-                              request_id: String(initialData.id), 
-                              candidate_name: newCandidateName, 
-                              existing_employee_id: null 
-                            }, formData.request_type); 
-                            setNewCandidateName(''); 
-                          } catch (e: any) {
-                            alert(e.message);
-                          }
-                        } 
-                      }} 
-                      sx={{ borderRadius: 2, fontWeight: 'bold' }}
-                    >
-                      Añadir
-                    </Button>
-                  </Stack>
+                  <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 800, mb: 1, display: 'block' }}>CANDIDATO EXTERNO (NUEVO)</Typography>
+                  <Grid container spacing={1.5}>
+                    <Grid item xs={12}>
+                      <TextField 
+                        fullWidth size="small" 
+                        placeholder="Nombre completo del candidato..." 
+                        value={newCandidateName} 
+                        onChange={(e) => setNewCandidateName(e.target.value)} 
+                        sx={inputStyles} 
+                      />
+                    </Grid>
+                    <Grid item xs={12} sm={5}>
+                      <Autocomplete
+                        size="small"
+                        options={countries}
+                        getOptionLabel={(option) => `${option.flag} +${option.phone}`}
+                        value={selectedCountry}
+                        onChange={(_e, val) => val && setSelectedCountry(val)}
+                        renderInput={(params) => (
+                          <TextField 
+                            {...params} 
+                            label="País" 
+                            sx={inputStyles}
+                            InputProps={{
+                              ...params.InputProps,
+                              startAdornment: <PublicIcon sx={{ fontSize: 18, mr: 1, color: 'text.secondary' }} />
+                            }}
+                          />
+                        )}
+                      />
+                    </Grid>
+                    <Grid item xs={12} sm={5}>
+                      <TextField 
+                        fullWidth size="small" 
+                        placeholder="Número telefónico" 
+                        value={newCandidatePhone} 
+                        onChange={handlePhoneChange}
+                        sx={inputStyles} 
+                      />
+                    </Grid>
+                    <Grid item xs={12} sm={2}>
+                      <Button 
+                        fullWidth variant="contained" 
+                        onClick={handleAddExternal} 
+                        sx={{ borderRadius: 2, fontWeight: 900, height: '40px', background: 'linear-gradient(45deg, #2196F3 30%, #21CBF3 90%)' }}
+                      >
+                        ADD
+                      </Button>
+                    </Grid>
+                  </Grid>
                 </Box>
                 <Divider><Typography variant="caption" sx={{ fontWeight: 800 }}>Ó</Typography></Divider>
                 <Box>
@@ -325,20 +445,7 @@ export default function StaffingRequestDialog({ open, onClose, onSubmit, initial
                     <Button 
                       variant="outlined" 
                       color="primary" 
-                      onClick={async () => { 
-                        if (selectedExistingEmployeeId && initialData?.id) { 
-                          try {
-                            await addCandidate({ 
-                              request_id: String(initialData.id), 
-                              candidate_name: null, 
-                              existing_employee_id: selectedExistingEmployeeId 
-                            }, formData.request_type); 
-                            setSelectedExistingEmployeeId(null); 
-                          } catch (e: any) {
-                            alert(e.message);
-                          }
-                        } 
-                      }} 
+                      onClick={handleAssignExisting}
                       sx={{ borderRadius: 2, fontWeight: 'bold' }}
                     >
                       Asignar
@@ -359,17 +466,32 @@ export default function StaffingRequestDialog({ open, onClose, onSubmit, initial
                       <Typography variant="caption" sx={{ color: 'text.secondary', display: 'flex', alignItems: 'center', gap: 0.5 }}>
                         {candidate.existing_employee_id ? <PersonSearchIcon sx={{ fontSize: 12 }} /> : <GroupAddIcon sx={{ fontSize: 12 }} />}
                         {candidate.existing_employee_id ? 'EMPLEADO SISTEMA' : 'EXTERNO'}
+                        {candidate.phone && candidate.phone !== 'N/A' && (
+                          <Stack direction="row" alignItems="center" component="span" sx={{ ml: 1 }}>
+                            • 📞 {candidate.phone}
+                            <IconButton 
+                              size="small" 
+                              onClick={() => {
+                                const clean = candidate.phone!.replace(/\D/g, '');
+                                window.open(`https://wa.me/${clean}`, '_blank');
+                              }}
+                              sx={{ color: '#25D366', p: 0, ml: 0.5 }}
+                            >
+                              <WhatsAppIcon sx={{ fontSize: 16 }} />
+                            </IconButton>
+                          </Stack>
+                        )}
                       </Typography>
                     </Box>
                     <FormControl size="small" sx={{ minWidth: 110 }}>
-                      <Select value={candidate.status} onChange={(e) => updateCandidateStatus(candidate.id, e.target.value as any)} sx={{ height: 30, fontSize: '0.7rem', fontWeight: 800 }}>
+                      <Select value={candidate.status === 'pendiente' ? 'pendiente' : candidate.status} onChange={(e) => handleUpdateCandidateStatus(candidate.id, e.target.value as any)} sx={{ height: 30, fontSize: '0.7rem', fontWeight: 800 }}>
                         <MenuItem value="Asignado">Asignado</MenuItem>
                         <MenuItem value="Confirmado">Confirmado</MenuItem>
-                        <MenuItem value="Llegó">Llegó</MenuItem>
+                        <MenuItem value="pendiente">Llegó</MenuItem>
                         <MenuItem value="No llegó">No llegó</MenuItem>
                       </Select>
                     </FormControl>
-                    <IconButton size="small" color="error" onClick={() => deleteCandidate(String(candidate.id))}><DeleteOutlineIcon fontSize="small" /></IconButton>
+                    <IconButton size="small" color="error" onClick={() => handleDeleteCandidate(String(candidate.id))}><DeleteOutlineIcon fontSize="small" /></IconButton>
                   </Paper>
                 );
               })}
@@ -377,6 +499,12 @@ export default function StaffingRequestDialog({ open, onClose, onSubmit, initial
           </Box>
         )}
       </DialogContent>
+
+      <Snackbar open={snackbar.open} autoHideDuration={4000} onClose={() => setSnackbar({ ...snackbar, open: false })}>
+        <Alert onClose={() => setSnackbar({ ...snackbar, open: false })} severity={snackbar.severity} sx={{ width: '100%', fontWeight: 800, borderRadius: 2 }}>
+          {snackbar.message}
+        </Alert>
+      </Snackbar>
 
       <DialogActions sx={{ p: 3 }}>
         <Button onClick={onClose} color="inherit" sx={{ fontWeight: 800 }}>Cancelar</Button>

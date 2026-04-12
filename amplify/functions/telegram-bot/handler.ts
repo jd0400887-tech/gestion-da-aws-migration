@@ -1,8 +1,8 @@
 import type { Handler } from 'aws-lambda';
 
 /**
- * ORANJEBOT: ULTRA-LIGHTWEIGHT (NO EXTERNAL DEPENDENCIES)
- * Esta versión garantiza la eliminación de errores 502 en producción.
+ * ORANJEBOT: SMART RECRUITMENT BOT
+ * Optimizado para OranjeApp con fechas flexibles y branding 🍊.
  */
 
 async function telegram(token: string, method: string, body: any) {
@@ -36,7 +36,7 @@ const GET_POSITION = `query GetPosition($id: ID!) { getPosition(id: $id) { id na
 const CREATE_REQUEST = `mutation CreateRequest($input: CreateStaffingRequestInput!) { createStaffingRequest(input: $input) { id request_number } }`;
 
 export const handler: Handler = async (event) => {
-  const token = process.env.BOT_TOKEN || ''; // Nota: Usamos el nombre exacto configurado
+  const token = process.env.BOT_TOKEN || '';
   let chatId = '0';
 
   try {
@@ -46,10 +46,7 @@ export const handler: Handler = async (event) => {
     if (body.message?.chat?.id) chatId = String(body.message.chat.id);
     if (body.callback_query?.message?.chat?.id) chatId = String(body.callback_query.message.chat.id);
 
-    if (!token) {
-      if (chatId !== '0') await telegram(token, 'sendMessage', { chat_id: chatId, text: "❌ Error: Token no encontrado." });
-      return { statusCode: 500, body: 'Token Error' };
-    }
+    if (!token) return { statusCode: 500, body: 'Token Error' };
 
     // --- CALLBACK QUERIES (Botones) ---
     if (body.callback_query) {
@@ -60,11 +57,11 @@ export const handler: Handler = async (event) => {
         const posId = data.split('_')[1];
         await telegram(token, 'sendMessage', {
           chat_id: chatId,
-          text: `🔢 **Step 2/5**: How many people do you need?`,
+          text: `🔢 **Paso 2/5**: ¿Cuántas personas necesitas?`,
           reply_markup: { inline_keyboard: [
-            [{ text: '1', callback_data: `q_${posId}_1` }, { text: '2', callback_data: `q_${posId}_2` }, { text: '3', callback_data: `q_${posId}_3` }],
-            [{ text: '4', callback_data: `q_${posId}_4` }, { text: '5', callback_data: `q_${posId}_5` }],
-            [{ text: '❌ Cancel', callback_data: 'c' }]
+            [{ text: '1 Persona', callback_data: `q_${posId}_1` }, { text: '2 Personas', callback_data: `q_${posId}_2` }],
+            [{ text: '3 Personas', callback_data: `q_${posId}_3` }, { text: 'Más de 3', callback_data: `q_${posId}_5` }],
+            [{ text: '❌ Cancelar', callback_data: 'c' }]
           ]}
         });
       }
@@ -73,24 +70,41 @@ export const handler: Handler = async (event) => {
         const [_, posId, qty] = data.split('_');
         await telegram(token, 'sendMessage', {
           chat_id: chatId,
-          text: `💼 **Step 3/5**: Employment Type:`,
+          text: `💼 **Paso 3/5**: Tipo de Contratación:`,
           reply_markup: { inline_keyboard: [
-            [{ text: '⏳ Temporary', callback_data: `t_${posId}_${qty}_temp` }, { text: '👔 Permanent', callback_data: `t_${posId}_${qty}_perm` }],
-            [{ text: '❌ Cancel', callback_data: 'c' }]
+            [{ text: '⏳ Temporal (Refuerzo)', callback_data: `t_${posId}_${qty}_temp` }],
+            [{ text: '👔 Permanente (Fijo)', callback_data: `t_${posId}_${qty}_perm` }],
+            [{ text: '❌ Cancelar', callback_data: 'c' }]
           ]}
         });
       }
 
       if (data.startsWith('t_')) {
         const [_, posId, qty, type] = data.split('_');
-        const today = new Date().toISOString().split('T')[0];
+        
+        // Generar botones de fecha dinámicos (Hoy, Mañana, +2, +3 días)
+        const dates = [];
+        for (let i = 0; i < 4; i++) {
+          const d = new Date();
+          d.setDate(d.getDate() + i);
+          const dateStr = d.toISOString().split('T')[0];
+          const label = i === 0 ? 'Hoy' : (i === 1 ? 'Mañana' : dateStr);
+          dates.push([{ text: `📅 ${label}`, callback_data: `d_${posId}_${qty}_${type}_${dateStr}` }]);
+        }
+        dates.push([{ text: '❓ Otra fecha (Escríbela)', callback_data: `manual_date_${posId}_${qty}_${type}` }]);
+        dates.push([{ text: '❌ Cancelar', callback_data: 'c' }]);
+
         await telegram(token, 'sendMessage', {
           chat_id: chatId,
-          text: `📅 **Step 4/5**: Start Date:`,
-          reply_markup: { inline_keyboard: [
-            [{ text: `Today (${today})`, callback_data: `d_${posId}_${qty}_${type}_${today}` }],
-            [{ text: '❌ Cancel', callback_data: 'c' }]
-          ]}
+          text: `🍊 **Paso 4/5**: ¿Cuándo deben iniciar?`,
+          reply_markup: { inline_keyboard: dates }
+        });
+      }
+
+      if (data.startsWith('manual_date_')) {
+        await telegram(token, 'sendMessage', {
+          chat_id: chatId,
+          text: "📝 Por favor, responde a este mensaje con la fecha deseada (Ej: 2026-05-15):"
         });
       }
 
@@ -98,11 +112,12 @@ export const handler: Handler = async (event) => {
         const [_, posId, qty, type, date] = data.split('_');
         await telegram(token, 'sendMessage', {
           chat_id: chatId,
-          text: `🕒 **Step 5/5**: Select Shift:`,
+          text: `🕒 **Paso 5/5**: Selecciona el turno:`,
           reply_markup: { inline_keyboard: [
-            [{ text: '🌅 Morning', callback_data: `f_${posId}_${qty}_${type}_${date}_07:00` }],
-            [{ text: '☀️ Afternoon', callback_data: `f_${posId}_${qty}_${type}_${date}_14:00` }],
-            [{ text: '❌ Cancel', callback_data: 'c' }]
+            [{ text: '🌅 Mañana (07:00 AM)', callback_data: `f_${posId}_${qty}_${type}_${date}_07:00` }],
+            [{ text: '☀️ Tarde (02:00 PM)', callback_data: `f_${posId}_${qty}_${type}_${date}_14:00` }],
+            [{ text: '🌙 Noche (10:00 PM)', callback_data: `f_${posId}_${qty}_${type}_${date}_22:00` }],
+            [{ text: '❌ Cancelar', callback_data: 'c' }]
           ]}
         });
       }
@@ -120,16 +135,19 @@ export const handler: Handler = async (event) => {
             request_number, hotel_id: hotel.id, role: pos.name, num_of_people: parseInt(qty),
             request_type: type === 'temp' ? 'temporal' : 'permanente', start_date: date, shift_time: time, status: 'Pendiente'
           }});
-          await telegram(token, 'sendMessage', { chat_id: chatId, text: `✅ **Request Created!**\nFolio: ${request_number}\nHotel: ${hotel.name}` });
+          await telegram(token, 'sendMessage', { 
+            chat_id: chatId, 
+            text: `🍊 **¡Solicitud Creada con Éxito!**\n\n📋 **Folio:** ${request_number}\n🏨 **Hotel:** ${hotel.name}\n👤 **Cargo:** ${pos.name}\n👥 **Cantidad:** ${qty}\n📅 **Inicio:** ${date}\n🕒 **Turno:** ${time}\n\nEl equipo de reclutamiento ya está trabajando en tu solicitud.` 
+          });
         }
       }
 
-      if (data === 'c') await telegram(token, 'sendMessage', { chat_id: chatId, text: "❌ Cancelled." });
+      if (data === 'c') await telegram(token, 'sendMessage', { chat_id: chatId, text: "❌ Solicitud cancelada." });
       await telegram(token, 'answerCallbackQuery', { callback_query_id: cb.id });
       return { statusCode: 200, body: 'OK' };
     }
 
-    // --- COMMANDS ---
+    // --- COMANDOS Y MENSAJES ---
     const text = body.message?.text || '';
     if (text.startsWith('/start')) {
       const hotelId = text.split(' ')[1];
@@ -137,11 +155,11 @@ export const handler: Handler = async (event) => {
         const hotelRes = await callGraphQL(GET_HOTEL, { id: hotelId });
         if (hotelRes.getHotel) {
           await callGraphQL(UPDATE_HOTEL_CHAT, { id: hotelId, chatId });
-          await telegram(token, 'sendMessage', { chat_id: chatId, text: `✅ Hello! Linked to **${hotelRes.getHotel.name}**.` });
+          await telegram(token, 'sendMessage', { chat_id: chatId, text: `🍊 ¡Hola! Bienvenido a **OranjeBot**. He vinculado este chat con **${hotelRes.getHotel.name}** correctamente.` });
           return { statusCode: 200, body: 'OK' };
         }
       }
-      await telegram(token, 'sendMessage', { chat_id: chatId, text: "🚀 Welcome! Use the dashboard to link this bot to your hotel." });
+      await telegram(token, 'sendMessage', { chat_id: chatId, text: "🚀 Bienvenido a OranjeBot. Usa el enlace desde tu Dashboard para vincular tu hotel." });
     }
 
     if (text === '/new' || !text.startsWith('/')) {
@@ -149,24 +167,30 @@ export const handler: Handler = async (event) => {
       if (hotelRes.listHotels.items.length > 0) {
         const hotel = hotelRes.listHotels.items[0];
         const posRes = await callGraphQL(LIST_POSITIONS);
-        const buttons = posRes.listPositions.items.map((p: any) => ([{ text: p.name, callback_data: `p_${p.id}` }]));
-        buttons.push([{ text: '❌ Cancel', callback_data: 'c' }]);
+        
+        // Botones Inline
+        const buttons = posRes.listPositions.items.map((p: any) => ([{ text: `🍊 ${p.name}`, callback_data: `p_${p.id}` }]));
+        buttons.push([{ text: '❌ Cancelar', callback_data: 'c' }]);
+
         await telegram(token, 'sendMessage', { 
           chat_id: chatId, 
-          text: `👋 **Hi!** Ready to create a request for **${hotel.name}**?\n\n📋 **Step 1/5**: Select position:`, 
-          reply_markup: { inline_keyboard: buttons } 
+          text: `👋 **Hola Gerente de ${hotel.name}**\n\n¿Necesitas personal nuevo? Puedes usar el portal interactivo o seleccionar un cargo abajo.\n\n📋 **Paso 1/5**: Selecciona el cargo:`, 
+          reply_markup: { 
+            inline_keyboard: [
+              [{ text: "🚀 ABRIR PORTAL ORANJE 🍊", web_app: { url: "https://master.d1okkcyyykb2rg.amplifyapp.com/solicitud-bot" } }],
+              ...buttons
+            ] 
+          } 
         });
       } else if (text === '/new') {
-        await telegram(token, 'sendMessage', { chat_id: chatId, text: "⚠️ Hotel not linked." });
-      } else if (!text.startsWith('/')) {
-        await telegram(token, 'sendMessage', { chat_id: chatId, text: "🚀 Welcome! Please use the link from your dashboard to link this bot to your hotel." });
+        await telegram(token, 'sendMessage', { chat_id: chatId, text: "⚠️ Este chat no está vinculado a ningún hotel. Usa el enlace oficial desde la web." });
       }
     }
 
     return { statusCode: 200, body: 'OK' };
   } catch (error: any) {
     console.error(error);
-    if (chatId !== '0') await telegram(token, 'sendMessage', { chat_id: chatId, text: `❌ Bot Error:\n${error.message}` });
+    if (chatId !== '0') await telegram(token, 'sendMessage', { chat_id: chatId, text: `❌ Error en el Bot Oranje:\n${error.message}` });
     return { statusCode: 500, body: 'Error' };
   }
 };

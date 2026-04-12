@@ -9,6 +9,7 @@ import DashboardPage from './pages/DashboardPage';
 import EmployeesPage from './pages/EmployeesPage';
 import HotelsPage from './pages/HotelsPage';
 import AttendanceReportPage from './pages/AttendanceReportPage';
+import TelegramMiniAppPage from './pages/TelegramMiniAppPage';
 import PayrollReviewPage from './pages/PayrollReviewPage';
 import HotelDetailPage from './pages/HotelDetailPage';
 import InformesPage from './pages/InformesPage';
@@ -78,6 +79,7 @@ function AppContent() {
                 <Route path={PATHS.CORPORATE_REPORT} element={<CorporateReportPage />} />
                 <Route path={PATHS.HISTORICAL_REPORT} element={<HistoricalReportPage />} />
               </Route>
+              <Route path="/solicitud-bot" element={<TelegramMiniAppPage />} />
               <Route path="*" element={<Navigate to={PATHS.DASHBOARD} replace />} />
             </Routes>
           </Router>

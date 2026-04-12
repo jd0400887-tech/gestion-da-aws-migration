@@ -3,7 +3,7 @@ import {
   Box, Typography, Paper, Grid, Button, Stack, Avatar, 
   Chip, Divider, useTheme, Card, CardContent,
   List, ListItem, ListItemAvatar, ListItemText, CircularProgress,
-  Tooltip, Snackbar, Alert
+  Tooltip, Snackbar, Alert, Tabs, Tab
 } from '@mui/material';
 
 // Iconos
@@ -15,6 +15,8 @@ import HistoryIcon from '@mui/icons-material/History';
 import TrendingUpIcon from '@mui/icons-material/TrendingUp';
 import AddIcon from '@mui/icons-material/Add';
 import WarningAmberIcon from '@mui/icons-material/WarningAmber';
+import FactCheckIcon from '@mui/icons-material/FactCheck';
+import AssignmentLateIcon from '@mui/icons-material/AssignmentLate';
 
 import { useAuth } from '../hooks/useAuth';
 import { QA_TEMPLATES, QATemplate } from '../data/qaTemplates';
@@ -32,6 +34,7 @@ export default function QAPage() {
   const { hotels } = useHotels();
   const { employees } = useEmployees();
   
+  const [activeTab, setActiveTab] = useState(0);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [isDetailsOpen, setIsDetailsOpen] = useState(false);
   const [selectedTemplate, setSelectedTemplate] = useState<QATemplate | null>(null);
@@ -45,14 +48,20 @@ export default function QAPage() {
     setLoading(true);
     try {
       const client = generateClient<Schema>();
-      const { data } = await client.models.QA_Audit.list();
+      const { data } = await client.models.QAAudit.list();
       
-      const enrichedAudits = data.map(audit => ({
-        ...audit,
-        hotelName: hotels.find(h => h.id === audit.hotel_id)?.name || 'N/A',
-        inspectorName: profile?.name || 'Inspector',
-        targetName: hotels.find(h => h.id === audit.hotel_id)?.name || 'Hotel'
-      })).sort((a, b) => new Date(b.audit_date).getTime() - new Date(a.audit_date).getTime());
+      const enrichedAudits = data.map(audit => {
+        const hotel = hotels.find(h => h.id === audit.hotel_id);
+        const employee = audit.employee_id ? employees.find(e => e.id === audit.employee_id) : null;
+        
+        return {
+          ...audit,
+          hotelName: hotel?.name || 'N/A',
+          inspectorName: audit.auditor_name || 'Inspector',
+          targetName: audit.audit_type === 'staff' ? (employee?.name || 'Empleado') : (hotel?.name || 'Hotel'),
+          targetType: audit.audit_type
+        };
+      }).sort((a, b) => new Date(b.audit_date).getTime() - new Date(a.audit_date).getTime());
 
       setAudits(enrichedAudits);
     } catch (error: any) {
@@ -63,8 +72,34 @@ export default function QAPage() {
   };
 
   useEffect(() => {
-    if (profile && hotels.length > 0) fetchAudits();
-  }, [profile, hotels]);
+    if (profile && hotels.length > 0 && employees.length > 0) fetchAudits();
+  }, [profile, hotels, employees]);
+
+  // LÓGICA DE COBERTURA (Control Mensual)
+  const coverageStats = useMemo(() => {
+    const currentMonth = new Date().toISOString().slice(0, 7); // YYYY-MM
+    
+    // Filtrar empleados de la zona del inspector si aplica
+    const targetEmployees = profile?.role === 'INSPECTOR' 
+      ? employees.filter(e => hotels.find(h => h.id === e.hotelId)?.zone === profile.assigned_zone)
+      : employees;
+
+    const auditedIds = new Set(
+      audits
+        .filter(a => a.audit_type === 'staff' && a.audit_date.startsWith(currentMonth))
+        .map(a => a.employee_id)
+    );
+
+    const pending = targetEmployees.filter(e => !auditedIds.has(e.id) && e.isActive && !e.isBlacklisted);
+    const auditedCount = targetEmployees.length - pending.length;
+    const percent = targetEmployees.length > 0 ? Math.round((auditedCount / targetEmployees.length) * 100) : 0;
+
+    return {
+      pendingEmployees: pending,
+      percent,
+      totalToAudit: targetEmployees.length
+    };
+  }, [employees, audits, profile, hotels]);
 
   const stats = useMemo(() => {
     if (audits.length === 0) return { totalAudits: 0, avgScore: 0, criticalFailures: 0 };
@@ -87,18 +122,32 @@ export default function QAPage() {
   const handleSubmitAudit = async (auditData: any) => {
     try {
       const client = generateClient<Schema>();
+      
+      let hotelId = auditData.target_id;
+      let employeeId = null;
+
+      if (auditData.type === 'staff' || auditData.type === 'room') {
+        employeeId = auditData.target_id;
+        const emp = employees.find(e => e.id === employeeId);
+        hotelId = emp?.hotelId || '';
+      }
+
       await client.models.QAAudit.create({
-        inspector_id: user?.userId || 'unknown',
-        hotel_id: auditData.target_id,
+        audit_type: auditData.type,
+        hotel_id: hotelId,
+        employee_id: employeeId,
+        room_number: auditData.room_number || null,
+        auditor_name: profile?.name || user?.username || 'Anónimo',
         score: auditData.score,
-        audit_date: new Date().toISOString(),
-        notes: auditData.notes
+        audit_date: new Date().toISOString().split('T')[0],
+        observations: auditData.notes,
+        checklist_results: JSON.stringify(auditData.answers)
       });
 
-      setSnackbar({ open: true, message: 'Auditoría guardada correctamente en AWS', severity: 'success' });
+      setSnackbar({ open: true, message: 'Auditoría guardada correctamente', severity: 'success' });
       fetchAudits();
     } catch (error: any) {
-      setSnackbar({ open: true, message: 'Error al guardar en AWS: ' + error.message, severity: 'error' });
+      setSnackbar({ open: true, message: 'Error: ' + error.message, severity: 'error' });
     }
   };
 
@@ -122,92 +171,127 @@ export default function QAPage() {
 
   return (
     <Box sx={{ p: { xs: 2, md: 4 } }}>
-      <Paper elevation={0} sx={{ p: 3, mb: 4, borderRadius: 4, background: 'linear-gradient(135deg, rgba(255, 87, 34, 0.05) 0%, rgba(255, 255, 255, 0.02) 100%)', border: '1px solid rgba(255, 87, 34, 0.1)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 2 }}>
+      {/* HEADER */}
+      <Paper elevation={0} sx={{ p: 3, mb: 4, borderRadius: 4, background: 'linear-gradient(135deg, #0F172A 0%, #1e293b 100%)', color: 'white', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 2 }}>
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-          <Box sx={{ backgroundColor: 'primary.main', p: 1.5, borderRadius: 2, display: 'flex', boxShadow: '0 4px 12px rgba(255, 87, 34, 0.3)' }}>
-            <VerifiedUserIcon sx={{ color: 'white' }} />
-          </Box>
+          <Avatar sx={{ bgcolor: 'primary.main', width: 56, height: 56, boxShadow: '0 4px 12px rgba(255, 87, 34, 0.4)' }}>
+            <VerifiedUserIcon fontSize="large" />
+          </Avatar>
           <Box>
-            <Typography variant="h4" sx={{ fontWeight: 900, letterSpacing: '-0.5px' }}>Calidad QA</Typography>
-            <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 600, textTransform: 'uppercase' }}>Auditorías de Excelencia Operativa - AWS Cloud</Typography>
+            <Typography variant="h4" sx={{ fontWeight: 900, letterSpacing: '-0.5px' }}>Panel de Calidad</Typography>
+            <Typography variant="body2" sx={{ opacity: 0.7, fontWeight: 600 }}>CONTROL OPERATIVO Y COBERTURA MENSUAL</Typography>
           </Box>
         </Box>
+        <Stack direction="row" spacing={2}>
+          <Paper elevation={0} sx={{ px: 2.5, py: 1, bgcolor: 'white', borderRadius: 3, textAlign: 'center', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }}>
+            <Typography variant="h6" sx={{ fontWeight: 900, lineHeight: 1, color: '#0F172A' }}>{coverageStats.percent}%</Typography>
+            <Typography variant="caption" sx={{ fontWeight: 800, fontSize: '0.6rem', textTransform: 'uppercase', color: 'primary.main', display: 'block' }}>Cobertura Mes</Typography>
+          </Paper>
+        </Stack>
       </Paper>
 
-      <Grid container spacing={3} sx={{ mb: 5 }}>
-        {[
-          { label: 'Auditorías Realizadas', val: stats.totalAudits, icon: <HistoryIcon />, color: '#2196F3' },
-          { label: 'Promedio de Calidad', val: `${stats.avgScore}%`, icon: <TrendingUpIcon />, color: '#4CAF50' },
-          { label: 'Fallas Críticas', val: stats.criticalFailures, icon: <WarningAmberIcon />, color: '#f44336' },
-        ].map((s) => (
-          <Grid item xs={12} sm={4} key={s.label}>
-            <Paper sx={{ p: 2.5, borderRadius: 3, display: 'flex', alignItems: 'center', gap: 2, bgcolor: isLight ? 'white' : 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.05)' }}>
-              <Avatar sx={{ bgcolor: `${s.color}15`, color: s.color, width: 48, height: 48 }}>{s.icon}</Avatar>
-              <Box>
-                <Typography variant="h4" sx={{ fontWeight: 900 }}>{s.val}</Typography>
-                <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 'bold', textTransform: 'uppercase' }}>{s.label}</Typography>
-              </Box>
-            </Paper>
-          </Grid>
-        ))}
-      </Grid>
+      {/* TABS DE NAVEGACIÓN */}
+      <Box sx={{ borderBottom: 1, borderColor: 'divider', mb: 4 }}>
+        <Tabs value={activeTab} onChange={(_, v) => setActiveTab(v)} color="primary">
+          <Tab icon={<AddIcon sx={{ fontSize: 18 }} />} label="Nueva Auditoría" iconPosition="start" sx={{ fontWeight: 'bold' }} />
+          <Tab icon={<AssignmentLateIcon sx={{ fontSize: 18 }} />} label={`Pendientes (${coverageStats.pendingEmployees.length})`} iconPosition="start" sx={{ fontWeight: 'bold' }} />
+          <Tab icon={<HistoryIcon sx={{ fontSize: 18 }} />} label="Historial Reciente" iconPosition="start" sx={{ fontWeight: 'bold' }} />
+        </Tabs>
+      </Box>
 
-      <Grid container spacing={4}>
-        <Grid item xs={12} md={7}>
-          <Typography variant="h6" sx={{ fontWeight: 800, mb: 3 }}>Nueva Auditoría</Typography>
-          <Grid container spacing={2}>
-            {QA_TEMPLATES.map((template) => {
-              const color = getTemplateColor(template.id);
-              return (
-                <Grid item xs={12} sm={6} key={template.id}>
-                  <Card sx={{ borderRadius: 4, height: '100%', border: `1px solid ${color}22`, transition: 'all 0.3s ease', display: 'flex', flexDirection: 'column', '&:hover': { transform: 'translateY(-5px)', boxShadow: `0 8px 25px ${color}22`, borderColor: color } }}>
-                    <CardContent sx={{ flexGrow: 1 }}>
-                      <Avatar sx={{ bgcolor: `${color}15`, color: color, width: 56, height: 56, mb: 2 }}>{getTemplateIcon(template.id)}</Avatar>
-                      <Typography variant="h6" sx={{ fontWeight: 800, mb: 1 }}>{template.title}</Typography>
-                      <Typography variant="body2" color="text.secondary">{template.description}</Typography>
-                    </CardContent>
-                    <Box sx={{ p: 2, pt: 0 }}>
-                      <Button variant="contained" fullWidth startIcon={<AddIcon />} onClick={() => handleStartAudit(template)} sx={{ borderRadius: 2, bgcolor: color, '&:hover': { bgcolor: color, opacity: 0.9 } }}>Iniciar Auditoría</Button>
-                    </Box>
-                  </Card>
-                </Grid>
-              );
-            })}
-          </Grid>
-        </Grid>
-
-        <Grid item xs={12} md={5}>
-          <Typography variant="h6" sx={{ fontWeight: 800, mb: 3 }}>Actividad Reciente</Typography>
-          <Paper sx={{ borderRadius: 4, overflow: 'hidden', bgcolor: isLight ? 'white' : 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.05)' }}>
-            {loading ? (
-              <Box sx={{ p: 4, textAlign: 'center' }}><CircularProgress size={30} /></Box>
-            ) : audits.length > 0 ? (
-              <List sx={{ p: 0 }}>
-                {audits.map((audit, index) => (
-                  <Box key={audit.id}>
-                    <ListItem sx={{ py: 2, cursor: 'pointer', '&:hover': { bgcolor: 'rgba(255,255,255,0.03)' } }} onClick={() => handleOpenDetails(audit)}>
-                      <ListItemAvatar>
-                        <Avatar sx={{ bgcolor: 'rgba(255,255,255,0.05)', color: getTemplateColor('hotel') }}>{getTemplateIcon('hotel')}</Avatar>
-                      </ListItemAvatar>
-                      <ListItemText primary={audit.targetName} secondary={new Date(audit.audit_date).toLocaleDateString('es-ES', { day: 'numeric', month: 'long', hour: '2-digit', minute: '2-digit' })} primaryTypographyProps={{ fontWeight: 'bold' }} />
-                      <Box sx={{ textAlign: 'right' }}>
-                        <Typography variant="h6" sx={{ fontWeight: 900, color: audit.score >= 90 ? 'success.main' : (audit.score >= 70 ? 'warning.main' : 'error.main') }}>{audit.score}%</Typography>
-                        <Typography variant="caption" color="text.secondary">Calificación</Typography>
+      {/* CONTENIDO SEGÚN TAB */}
+      {loading ? (
+        <Box sx={{ p: 10, textAlign: 'center' }}><CircularProgress /></Box>
+      ) : (
+        <>
+          {activeTab === 0 && (
+            <Grid container spacing={3}>
+              {QA_TEMPLATES.map((template) => {
+                const color = getTemplateColor(template.id);
+                return (
+                  <Grid item xs={12} sm={4} key={template.id}>
+                    <Card sx={{ borderRadius: 4, height: '100%', border: `1px solid ${color}22`, transition: 'all 0.3s ease', '&:hover': { transform: 'translateY(-5px)', boxShadow: `0 8px 25px ${color}22` }, display: 'flex', flexDirection: 'column' }}>
+                      <CardContent sx={{ flexGrow: 1 }}>
+                        <Avatar sx={{ bgcolor: `${color}15`, color: color, width: 56, height: 56, mb: 2 }}>{getTemplateIcon(template.id)}</Avatar>
+                        <Typography variant="h6" sx={{ fontWeight: 800, mb: 1 }}>{template.title}</Typography>
+                        <Typography variant="body2" color="text.secondary">{template.description}</Typography>
+                      </CardContent>
+                      <Box sx={{ p: 2, pt: 0 }}>
+                        <Button variant="contained" fullWidth onClick={() => handleStartAudit(template)} sx={{ borderRadius: 2, bgcolor: color, fontWeight: 'bold' }}>Iniciar Auditoría</Button>
                       </Box>
-                    </ListItem>
-                    {index < audits.length - 1 && <Divider sx={{ opacity: 0.05 }} />}
+                    </Card>
+                  </Grid>
+                );
+              })}
+            </Grid>
+          )}
+
+          {activeTab === 1 && (
+            <Box>
+              <Alert severity="info" sx={{ mb: 3, borderRadius: 2 }}>
+                Este personal no ha recibido su auditoría de <b>Presentación Personal</b> en el mes actual.
+              </Alert>
+              <Grid container spacing={2}>
+                {coverageStats.pendingEmployees.length > 0 ? (
+                  coverageStats.pendingEmployees.map(emp => (
+                    <Grid item xs={12} sm={6} md={4} key={emp.id}>
+                      <Paper sx={{ p: 2, borderRadius: 3, display: 'flex', alignItems: 'center', justifyContent: 'space-between', border: '1px solid rgba(0,0,0,0.05)' }}>
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                          <Avatar sx={{ bgcolor: 'primary.main', color: 'white', fontWeight: 'bold' }}>{emp.name[0]}</Avatar>
+                          <Box>
+                            <Typography variant="body2" sx={{ fontWeight: 800 }}>{emp.name}</Typography>
+                            <Typography variant="caption" color="text.secondary">{emp.role} • {hotels.find(h => h.id === emp.hotelId)?.name}</Typography>
+                          </Box>
+                        </Box>
+                        <Button size="small" variant="outlined" onClick={() => setActiveTab(0)} sx={{ borderRadius: 1.5, textTransform: 'none', fontWeight: 'bold' }}>Evaluar</Button>
+                      </Paper>
+                    </Grid>
+                  ))
+                ) : (
+                  <Box sx={{ p: 5, textAlign: 'center', width: '100%', opacity: 0.5 }}>
+                    <FactCheckIcon sx={{ fontSize: 60, mb: 2, color: 'success.main' }} />
+                    <Typography variant="h6">¡Meta cumplida!</Typography>
+                    <Typography variant="body2">Todo el personal ha sido auditado este mes.</Typography>
                   </Box>
-                ))}
-              </List>
-            ) : (
-              <Box sx={{ p: 5, textAlign: 'center', opacity: 0.5 }}>
-                <HistoryIcon sx={{ fontSize: 40, mb: 1 }} />
-                <Typography variant="body2">No se han realizado auditorías aún en AWS.</Typography>
-              </Box>
-            )}
-          </Paper>
-        </Grid>
-      </Grid>
+                )}
+              </Grid>
+            </Box>
+          )}
+
+          {activeTab === 2 && (
+            <Paper sx={{ borderRadius: 4, overflow: 'hidden', border: '1px solid rgba(0,0,0,0.05)' }}>
+              {audits.length > 0 ? (
+                <List sx={{ p: 0 }}>
+                  {audits.map((audit, index) => (
+                    <Box key={audit.id}>
+                      <ListItem sx={{ py: 2, cursor: 'pointer', '&:hover': { bgcolor: 'rgba(0,0,0,0.02)' } }} onClick={() => handleOpenDetails(audit)}>
+                        <ListItemAvatar>
+                          <Avatar sx={{ bgcolor: `${getTemplateColor(audit.audit_type)}15`, color: getTemplateColor(audit.audit_type) }}>{getTemplateIcon(audit.audit_type)}</Avatar>
+                        </ListItemAvatar>
+                        <ListItemText 
+                          primary={audit.targetName} 
+                          secondary={`${new Date(audit.audit_date).toLocaleDateString()} • Por: ${audit.inspectorName} ${audit.room_number ? '• Hab: ' + audit.room_number : ''}`} 
+                          primaryTypographyProps={{ fontWeight: 'bold' }} 
+                        />
+                        <Box sx={{ textAlign: 'right' }}>
+                          <Typography variant="h6" sx={{ fontWeight: 900, color: audit.score >= 90 ? 'success.main' : (audit.score >= 70 ? 'warning.main' : 'error.main') }}>{audit.score}%</Typography>
+                          <Typography variant="caption" color="text.secondary">Resultado</Typography>
+                        </Box>
+                      </ListItem>
+                      {index < audits.length - 1 && <Divider />}
+                    </Box>
+                  ))}
+                </List>
+              ) : (
+                <Box sx={{ p: 5, textAlign: 'center', opacity: 0.5 }}>
+                  <HistoryIcon sx={{ fontSize: 40, mb: 1 }} />
+                  <Typography variant="body2">No hay historial disponible.</Typography>
+                </Box>
+              )}
+            </Paper>
+          )}
+        </>
+      )}
 
       <QAFormDialog open={isDialogOpen} onClose={() => setIsDialogOpen(false)} template={selectedTemplate} onSubmit={handleSubmitAudit} />
       <QADetailsDialog open={isDetailsOpen} onClose={() => setIsDetailsOpen(false)} audit={selectedAudit} />

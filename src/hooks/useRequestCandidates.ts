@@ -28,31 +28,28 @@ export const useRequestCandidates = (requestId: string | null, userName: string 
       });
 
       // 2. Para cada aplicación, buscamos el perfil (Empleado o Candidato) en paralelo
-      // Esto es mucho más rápido que bajar toda la base de datos
       const mapped = await Promise.all(apps.map(async (app) => {
         const candidateId = app.candidate_id || '';
         
-        // Intentamos buscar en Empleados primero (más común)
         const { data: emp } = await client.models.Employee.get({ id: candidateId });
-        
         if (emp) {
           return {
             id: app.id as any,
             request_id: requestId as any,
             candidate_name: emp.name,
+            phone: emp.phone,
             status: (app.status as any) || 'Asignado',
             created_at: app.applied_at,
             existing_employee_id: emp.id
           };
         }
 
-        // Si no es empleado, buscamos en la tabla de candidatos externos
         const { data: cand } = await client.models.Candidate.get({ id: candidateId });
-
         return {
           id: app.id as any,
           request_id: requestId as any,
           candidate_name: cand?.name || 'Candidato Desconocido',
+          phone: cand?.phone,
           status: (app.status as any) || 'Asignado',
           created_at: app.applied_at,
           existing_employee_id: null
@@ -79,29 +76,23 @@ export const useRequestCandidates = (requestId: string | null, userName: string 
       let candidateId = newCandidate.existing_employee_id;
       let nameForLog = newCandidate.candidate_name;
 
-      // VALIDACIÓN DE REGLAS DE NEGOCIO (MANDATOS MAESTROS)
       if (candidateId) {
         const { data: emp } = await client.models.Employee.get({ id: candidateId });
-        
         if (emp) {
-          // 1. REGLA DE EXCLUSIVIDAD DE PLAZA FIJA
           if (emp.employee_type === 'permanente' && requestType === 'permanente') {
             throw new Error(`RESTRICCIÓN: ${emp.name} ya cuenta con contrato Permanente. No puede ser asignado a otra vacante de plaza fija.`);
           }
-          
-          // 2. BLOQUEO POR LISTA NEGRA (Seguridad extra)
           if (emp.is_blacklisted) {
             throw new Error(`BLOQUEO DE SEGURIDAD: ${emp.name} se encuentra en Lista Negra y no puede ser asignado.`);
           }
-
           nameForLog = emp.name;
         }
       }
 
-      // Si no existe el ID, creamos un candidato externo (Prospecto)
       if (!candidateId) {
         const { data: cand } = await client.models.Candidate.create({
           name: newCandidate.candidate_name || 'Nuevo Candidato',
+          phone: newCandidate.phone || 'N/A',
           role: 'Externo',
           status: 'Activo'
         });
@@ -115,31 +106,31 @@ export const useRequestCandidates = (requestId: string | null, userName: string 
         applied_at: new Date().toISOString()
       });
 
-      // REGISTRAR EN HISTORIAL CON ETIQUETA DE REFUERZO SI APLICA
       const isCover = candidateId && requestType === 'temporal';
       const logMessage = isCover 
         ? `Candidato asignado como REFUERZO (COVER): ${nameForLog}`
         : `Candidato asignado: ${nameForLog}`;
 
       await staffingService.addHistory(String(requestId), logMessage, userName);
-
       await fetchCandidates();
     } catch (error: any) {
-      console.error('Error en validación de negocio:', error.message);
-      throw error; // Re-lanzamos para que la UI lo capture
+      throw error;
     }
   };
 
   const updateCandidateStatus = async (applicationId: string, newStatus: string) => {
     try {
       const client = generateClient<Schema>();
-      
-      // Obtener nombre para el log
       const current = candidates.find(c => String(c.id) === applicationId);
       
+      // Mapeo lógico: Si en la solicitud marcan 'Llegó', 
+      // para el módulo de aplicaciones es un estado 'pendiente' de validación.
+      let apiStatus = newStatus;
+      if (newStatus === 'Llegó') apiStatus = 'pendiente';
+
       await client.models.Application.update({
         id: applicationId,
-        status: newStatus
+        status: apiStatus
       });
 
       // REGISTRAR EN HISTORIAL

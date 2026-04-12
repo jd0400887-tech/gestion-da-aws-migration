@@ -2,6 +2,16 @@
 
 Todos los cambios notables en este proyecto serán documentados en este archivo.
 
+## [0.7.1] - 2026-04-11 (Sesión 8 - Sincronización de Cargos y Normalización)
+
+### Añadido
+- **Sincronización Dinámica de Cargos:** El módulo de Aplicaciones ahora consume cargos reales configurados en el sistema mediante `usePositions`, eliminando la dependencia de listas estáticas.
+- **Normalización de Roles (TitleCase):** Implementación de `toTitleCase` en el flujo de alta de empleados para corregir discrepancias de formato (ej: "housekeeper" -> "Housekeeper").
+
+### Corregido
+- **Error MUI Out-of-Range:** Solucionado el error visual en el componente `Select` de `EmployeeForm` causado por valores en minúsculas provenientes de aplicaciones externas.
+- **Consistencia en Formularios:** Actualización de `ApplicationForm` y `EmployeeForm` en el módulo de aplicaciones para usar la lista maestra de posiciones.
+
 ## [0.7.0] - 2026-04-10 (Sesión 7 - OranjeBot: Telegram Integration & AWS Lambda)
 
 ### Añadido

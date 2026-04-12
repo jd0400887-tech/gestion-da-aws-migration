@@ -23,15 +23,21 @@ import HistoryIcon from '@mui/icons-material/History';
 import { useApplications, Application } from '../hooks/useApplications';
 import { useHotels } from '../hooks/useHotels';
 import { useAuth } from '../hooks/useAuth';
+import { usePositions } from '../hooks/usePositions';
 import EmployeeForm from '../components/employees/EmployeeForm';
 import FormModal from '../components/form/FormModal';
 import { useEmployees } from '../hooks/useEmployees';
 import ApplicationForm from '../components/applications/ApplicationForm';
 import { EMPLOYEE_POSITIONS } from '../data/constants';
+import { toTitleCase } from '../utils/stringUtils';
+
+// Iconos extra
+import WhatsAppIcon from '@mui/icons-material/WhatsApp';
+import PhoneIcon from '@mui/icons-material/Phone';
 
 const statusConfig: { [key in Application['status']]: { label: string, color: any, icon: any } } = {
-  'pendiente': { label: 'Pendiente', color: 'warning', icon: <PendingActionsIcon fontSize="small" /> },
-  'completada': { label: 'Lista para Alta', color: 'info', icon: <CheckCircleIcon fontSize="small" /> },
+  'pendiente': { label: 'Por Validar', color: 'warning', icon: <PendingActionsIcon fontSize="small" /> },
+  'completada': { label: 'Validado (Listo para Alta)', color: 'info', icon: <CheckCircleIcon fontSize="small" /> },
   'empleado_creado': { label: 'Contratado', color: 'success', icon: <AssignmentIndIcon fontSize="small" /> },
 };
 
@@ -39,6 +45,11 @@ const ApplicationCard = ({ application, onStatusChange, onAddEmployee, onDelete,
   const theme = useTheme();
   const isLight = theme.palette.mode === 'light';
   const config = statusConfig[application.status as Application['status']] || { label: application.status, color: 'default', icon: null };
+
+  const handleWhatsApp = (phone: string) => {
+    const cleanPhone = phone.replace(/\D/g, '');
+    window.open(`https://wa.me/${cleanPhone}`, '_blank');
+  };
 
   return (
     <Card sx={{ 
@@ -61,7 +72,7 @@ const ApplicationCard = ({ application, onStatusChange, onAddEmployee, onDelete,
         <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 2 }}>
           <Box sx={{ display: 'flex', gap: 2, alignItems: 'center' }}>
             <Avatar sx={{ bgcolor: 'primary.main', width: 48, height: 48, fontWeight: 'bold' }}>
-              {application.candidate_name[0]}
+              {application.candidate_name ? application.candidate_name[0] : '?'}
             </Avatar>
             <Box>
               <Typography variant="h6" sx={{ fontWeight: 800, lineHeight: 1.2 }}>
@@ -88,60 +99,59 @@ const ApplicationCard = ({ application, onStatusChange, onAddEmployee, onDelete,
         <Stack spacing={1.5}>
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
             <CategoryIcon sx={{ fontSize: 18, color: 'primary.main', opacity: 0.7 }} />
-            <Typography variant="body2" sx={{ fontWeight: 600 }}>{application.role}</Typography>
+            <Typography variant="body2" sx={{ fontWeight: 600 }}>{toTitleCase(application.role || 'N/A')}</Typography>
           </Box>
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
             <ApartmentIcon sx={{ fontSize: 18, color: 'primary.main', opacity: 0.7 }} />
             <Typography variant="body2" sx={{ fontWeight: 500 }}>{getHotelName(application.hotel_id)}</Typography>
           </Box>
+          {application.phone && application.phone !== 'N/A' && (
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+              <PhoneIcon sx={{ fontSize: 18, color: 'success.main' }} />
+              <Typography variant="body2" sx={{ fontWeight: 700 }}>{application.phone}</Typography>
+              <IconButton size="small" onClick={() => handleWhatsApp(application.phone)} sx={{ color: '#25D366', p: 0 }}>
+                <WhatsAppIcon fontSize="small" />
+              </IconButton>
+            </Box>
+          )}
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
             <HistoryIcon sx={{ fontSize: 18, color: 'text.disabled' }} />
             <Typography variant="caption" color="text.secondary">
-              Recibida: {new Date(application.created_at).toLocaleDateString()}
+              Llegada: {new Date(application.created_at).toLocaleDateString()}
             </Typography>
           </Box>
         </Stack>
 
         <Box sx={{ mt: 3, display: 'flex', flexWrap: 'wrap', gap: 1 }}>
-          {application.status !== 'empleado_creado' && (
-            <>
-              <Button 
-                variant={application.status === 'pendiente' ? 'contained' : 'outlined'} 
-                onClick={() => onStatusChange(application.id, 'pendiente')}
-                size="small"
-                fullWidth={application.status === 'pendiente'}
-                sx={{ borderRadius: 2, textTransform: 'none', fontWeight: 'bold', flex: 1 }}
-              >
-                Pendiente
-              </Button>
-              <Button 
-                variant={application.status === 'completada' ? 'contained' : 'outlined'} 
-                onClick={() => onStatusChange(application.id, 'completada')}
-                size="small"
-                fullWidth={application.status === 'completada'}
-                sx={{ borderRadius: 2, textTransform: 'none', fontWeight: 'bold', flex: 1 }}
-              >
-                Lista
-              </Button>
-            </>
+          {application.status === 'pendiente' && (
+            <Button 
+              variant="contained" 
+              color="primary"
+              onClick={() => onStatusChange(application.id, 'completada')}
+              size="small"
+              fullWidth
+              sx={{ borderRadius: 2, textTransform: 'none', fontWeight: 900 }}
+            >
+              Validar Datos en Persona
+            </Button>
+          )}
+          
+          {application.status === 'completada' && (
+            <Button 
+              variant="contained" 
+              color="success" 
+              fullWidth
+              startIcon={<PersonAddIcon />}
+              onClick={() => onAddEmployee(application)} 
+              sx={{ 
+                borderRadius: 2, fontWeight: 900,
+                boxShadow: '0 4px 12px rgba(76, 175, 80, 0.3)'
+              }}
+            >
+              Dar de Alta Empleado
+            </Button>
           )}
         </Box>
-
-        {application.status === 'completada' && (
-          <Button 
-            variant="contained" 
-            color="success" 
-            fullWidth
-            startIcon={<PersonAddIcon />}
-            onClick={() => onAddEmployee(application)} 
-            sx={{ 
-              mt: 1.5, borderRadius: 2, fontWeight: 'bold',
-              boxShadow: '0 4px 12px rgba(76, 175, 80, 0.3)'
-            }}
-          >
-            Dar de Alta como Empleado
-          </Button>
-        )}
       </CardContent>
     </Card>
   );
@@ -155,9 +165,19 @@ export default function ApplicationsPage() {
   const { hotels } = useHotels();
   const { profile } = useAuth();
   const { employees, addEmployee } = useEmployees();
+  const { positions } = usePositions();
 
   const isInspector = profile?.role === 'INSPECTOR';
   const isAdmin = profile?.role === 'ADMIN';
+
+  // Dynamic roles from DB or fallback
+  const rolesList = useMemo(() => {
+    if (positions && positions.length > 0) {
+      // Normalizamos a TitleCase para que coincida con los valores pre-llenados
+      return positions.map(p => toTitleCase(p.name));
+    }
+    return EMPLOYEE_POSITIONS;
+  }, [positions]);
 
   // State for Modals and Snackbar
   const [isEmployeeModalOpen, setIsEmployeeModalOpen] = useState(false);
@@ -206,13 +226,15 @@ export default function ApplicationsPage() {
   const handleOpenAddEmployeeModal = (application: Application) => {
     setCurrentCandidate(application);
     setNewEmployeeFormData({
-      name: application.candidate_name,
-      hotelId: application.hotel_id,
-      role: application.role,
+      name: toTitleCase(application.candidate_name || ''),
+      phone: application.phone || '',
+      hotelId: application.hotel_id || '', // Precarga el hotel de la solicitud
+      role: toTitleCase(application.role || ''),       // Precarga el cargo de la solicitud con TitleCase
       isActive: true,
       isBlacklisted: false,
       payrollType: 'timesheet',
       employeeType: 'permanente',
+      documentacion_completa: false,
     });
     setIsEmployeeModalOpen(true);
   };
@@ -411,11 +433,11 @@ export default function ApplicationsPage() {
 
       {/* MODALS */}
       <FormModal open={isAppModalOpen} onClose={() => setIsAppModalOpen(false)} onSave={handleSaveApplication} title="Nueva Aplicación de Candidato">
-        <ApplicationForm formData={newApplicationFormData} onFormChange={(f, v) => setNewApplicationFormData(prev => ({ ...prev, [f]: v }))} hotels={allowedHotels} roles={EMPLOYEE_POSITIONS} />
+        <ApplicationForm formData={newApplicationFormData} onFormChange={(f, v) => setNewApplicationFormData(prev => ({ ...prev, [f]: v }))} hotels={allowedHotels} roles={rolesList} />
       </FormModal>
 
       <FormModal open={isEmployeeModalOpen} onClose={handleCloseEmployeeModal} onSave={handleSaveEmployee} title={`Alta de Empleado: ${currentCandidate?.candidate_name}`}>
-        <EmployeeForm employeeData={newEmployeeFormData || {}} onFormChange={(f, v) => setNewEmployeeFormData((prev: any) => ({ ...prev, [f]: v }))} hotels={allowedHotels} onToggleBlacklist={() => {}} />
+        <EmployeeForm employeeData={newEmployeeFormData || {}} onFormChange={(f, v) => setNewEmployeeFormData((prev: any) => ({ ...prev, [f]: v }))} hotels={allowedHotels} roles={rolesList} onToggleBlacklist={() => {}} />
       </FormModal>
 
       <Snackbar open={!!snackbar} autoHideDuration={4000} onClose={() => setSnackbar(null)} anchorOrigin={{ vertical: 'top', horizontal: 'right' }} sx={{ mt: 7 }}>

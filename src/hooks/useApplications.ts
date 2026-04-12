@@ -10,6 +10,7 @@ export interface Application {
   status: 'pendiente' | 'completada' | 'empleado_creado';
   completed_at: string | null;
   candidate_name?: string;
+  phone?: string;
   hotel_id?: string;
   role?: string;
 }
@@ -38,6 +39,7 @@ export const useApplications = () => {
           status: (app.status as any) || 'pendiente',
           completed_at: null,
           candidate_name: candidate?.name || 'N/A',
+          phone: candidate?.phone || 'N/A',
           hotel_id: request?.hotel_id || 'N/A',
           role: request?.role || 'N/A',
         };

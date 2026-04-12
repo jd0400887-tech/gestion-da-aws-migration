@@ -1,6 +1,6 @@
 import { useState, useMemo, useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { Box, Typography, Button, Stack, ToggleButtonGroup, ToggleButton, Paper, Divider, useTheme } from '@mui/material';
+import { Box, Typography, Button, Stack, ToggleButtonGroup, ToggleButton, Paper, useTheme } from '@mui/material';
 import SaveAltIcon from '@mui/icons-material/SaveAlt';
 import SearchIcon from '@mui/icons-material/Search';
 import ViewListIcon from '@mui/icons-material/ViewList';
@@ -20,11 +20,12 @@ import { exportEmployeesToExcel } from '../utils/exportUtils';
 import EmployeeFilters from '../components/employees/EmployeeFilters';
 import EmployeeGrid from '../components/employees/EmployeeGrid';
 import EmployeeTable from '../components/employees/EmployeeTable';
+import BulkImportButton from '../components/common/BulkImportButton';
 
 export default function EmployeesPage() {
   const theme = useTheme();
   const isLight = theme.palette.mode === 'light';
-  const { employees, addEmployee, updateEmployee, deleteEmployee, toggleEmployeeBlacklist, roles } = useEmployees();
+  const { employees, addEmployee, updateEmployee, deleteEmployee, toggleEmployeeBlacklist, roles, handleBulkImport } = useEmployees();
   const { hotels } = useHotels();
   const { profile } = useAuth();
   
@@ -32,6 +33,7 @@ export default function EmployeesPage() {
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState('active');
   
+  const isAdmin = profile?.role === 'ADMIN';
   const initialZone = profile?.role === 'INSPECTOR' 
     ? (profile.assigned_zone || 'Centro') 
     : 'all';
@@ -152,18 +154,21 @@ export default function EmployeesPage() {
           <Button variant="outlined" startIcon={<SaveAltIcon />} onClick={() => exportEmployeesToExcel(filteredEmployees, hotels)} sx={{ borderRadius: 2, fontWeight: 'bold' }}>
             Exportar Excel
           </Button>
-          <Button
-            variant="contained"
-            startIcon={<AddIcon />}
-            onClick={handleOpenAddModal}
-            sx={{
-              borderRadius: 2, px: 3, fontWeight: 'bold',
-              background: 'linear-gradient(45deg, #FF5722 30%, #FF8A65 90%)',
-              boxShadow: '0 4px 14px 0 rgba(255, 87, 34, 0.39)',
-            }}
-          >
-            Añadir Empleado
-          </Button>
+          {isAdmin && (
+            <Button
+              variant="contained"
+              startIcon={<AddIcon />}
+              onClick={handleOpenAddModal}
+              sx={{
+                borderRadius: 2, px: 3, fontWeight: 'bold',
+                background: 'linear-gradient(45deg, #FF5722 30%, #FF8A65 90%)',
+                boxShadow: '0 4px 14px rgba(255, 87, 34, 0.4)',
+              }}
+            >
+              Nuevo Empleado
+            </Button>
+          )}
+          <BulkImportButton onImport={handleBulkImport} />
         </Stack>
       </Paper>
 

@@ -28,8 +28,18 @@ export default function QADetailsDialog({ open, onClose, audit }: QADetailsDialo
 
   if (!audit) return null;
 
-  const template = QA_TEMPLATES.find(t => t.id === audit.type);
-  const targetName = audit.type === 'staff' ? audit.employees?.name : (audit.type === 'room' ? audit.employees?.name : audit.hotels?.name);
+  const template = QA_TEMPLATES.find(t => t.id === audit.audit_type);
+  const targetName = audit.targetName;
+  
+  // Parsear resultados del checklist (vienen de AWS como JSON string o ya parseados según el client)
+  let results: Record<string, string> = {};
+  try {
+    results = typeof audit.checklist_results === 'string' 
+      ? JSON.parse(audit.checklist_results) 
+      : audit.checklist_results || {};
+  } catch (e) {
+    console.error("Error al parsear checklist_results:", e);
+  }
 
   return (
     <Dialog open={open} onClose={onClose} maxWidth="sm" fullWidth PaperProps={{ sx: { borderRadius: 4 } }}>
@@ -41,7 +51,7 @@ export default function QADetailsDialog({ open, onClose, audit }: QADetailsDialo
             </Avatar>
             <Box>
               <Typography variant="h6" sx={{ fontWeight: 800 }}>Detalle de Auditoría</Typography>
-              <Typography variant="caption" sx={{ opacity: 0.7 }}>Realizada el {new Date(audit.created_at).toLocaleDateString()}</Typography>
+              <Typography variant="caption" sx={{ opacity: 0.7 }}>Realizada el {new Date(audit.audit_date).toLocaleDateString()}</Typography>
             </Box>
           </Box>
           <IconButton onClick={onClose} sx={{ color: 'white' }}><CloseIcon /></IconButton>
@@ -52,12 +62,12 @@ export default function QADetailsDialog({ open, onClose, audit }: QADetailsDialo
         {/* INFO DEL AUDITADO */}
         <Paper elevation={0} sx={{ p: 2, mb: 3, borderRadius: 3, border: '1px solid rgba(0,0,0,0.05)', display: 'flex', alignItems: 'center', gap: 2 }}>
           <Avatar sx={{ bgcolor: 'rgba(255, 87, 34, 0.1)', color: 'primary.main' }}>
-            {audit.type === 'hotel' ? <ApartmentIcon /> : <PersonIcon />}
+            {audit.audit_type === 'hotel' ? <ApartmentIcon /> : <PersonIcon />}
           </Avatar>
           <Box>
             <Typography variant="subtitle1" sx={{ fontWeight: 'bold' }}>{targetName}</Typography>
             <Typography variant="caption" color="text.secondary" sx={{ textTransform: 'uppercase', fontWeight: 800 }}>
-              {template?.title}
+              {template?.title || 'Auditoría Personalizada'}
             </Typography>
           </Box>
         </Paper>
@@ -66,7 +76,7 @@ export default function QADetailsDialog({ open, onClose, audit }: QADetailsDialo
         
         <Stack spacing={1}>
           {template?.questions.map((q) => {
-            const answer = audit.audit_data[q.id];
+            const answer = results[q.id];
             const isPass = answer === 'pass';
             const isFail = answer === 'fail';
             const isNA = answer === 'na';
@@ -94,12 +104,12 @@ export default function QADetailsDialog({ open, onClose, audit }: QADetailsDialo
         </Stack>
 
         {/* NOTAS */}
-        {audit.notes && (
+        {audit.observations && (
           <Box sx={{ mt: 3 }}>
             <Typography variant="overline" sx={{ fontWeight: 900, color: 'text.secondary' }}>Observaciones del Inspector</Typography>
             <Paper elevation={0} sx={{ p: 2, mt: 0.5, borderRadius: 2, bgcolor: 'rgba(255, 152, 0, 0.05)', border: '1px dashed rgba(255, 152, 0, 0.3)' }}>
               <Typography variant="body2" sx={{ fontStyle: 'italic', color: 'text.secondary' }}>
-                "{audit.notes}"
+                "{audit.observations}"
               </Typography>
             </Paper>
           </Box>
