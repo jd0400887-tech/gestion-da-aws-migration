@@ -34,24 +34,25 @@ const schema = a.schema({
   // 2. ESTRUCTURA ORGANIZATIVA (HOTELES)
   Hotel: a.model({
     id: a.id(),
-    hotel_code: a.string(),
+    hotelCode: a.string(), // Restaurado de hotel_code
     name: a.string().required(),
     city: a.string().required(),
     address: a.string().required(),
     zone: a.string().required(),
     latitude: a.float(),
     longitude: a.float(),
-    manager_name: a.string(),
+    managerName: a.string(), // Restaurado de manager_name
     phone: a.string(),
     email: a.string(),
     image_url: a.string(),
     description: a.string(),
-    employees: a.hasMany('Employee', 'current_hotel_id'),
-    requests: a.hasMany('StaffingRequest', 'hotel_id'),
-    qa_audits: a.hasMany('QAAudit', 'hotel_id'),
-    attendance_records: a.hasMany('AttendanceRecord', 'hotel_id'),
-    applications: a.hasMany('Application', 'hotel_id'),
-    payroll_reviews: a.hasMany('PayrollReview', 'hotel_id'),
+    telegram_chat_id: a.string(), // Necesario para el bot
+    employees: a.hasMany('Employee', 'hotelId'),
+    requests: a.hasMany('StaffingRequest', 'hotelId'),
+    qa_audits: a.hasMany('QAAudit', 'hotelId'),
+    attendance_records: a.hasMany('AttendanceRecord', 'hotelId'),
+    applications: a.hasMany('Application', 'hotelId'),
+    payroll_reviews: a.hasMany('PayrollReview', 'hotelId'),
   }).authorization((allow) => [
     allow.authenticated(),
     allow.publicApiKey().to(['read', 'update']),
@@ -60,47 +61,47 @@ const schema = a.schema({
   // 3. GESTIÓN DE PERSONAL
   Employee: a.model({
     id: a.id(),
-    employee_number: a.string().required(),
+    employeeNumber: a.string().required(), // Restaurado de employee_number
     name: a.string().required(),
     role: a.string().required(),
     phone: a.string(),
     email: a.string(),
-    employee_type: a.string().required(), // 'permanente', 'temporal'
-    payroll_type: a.string().required(), // 'timesheet', 'Workrecord'
-    is_active: a.boolean().default(true),
-    is_blacklisted: a.boolean().default(false),
-    blacklist_reason: a.string(),
-    current_hotel_id: a.id().required(),
-    current_hotel: a.belongsTo('Hotel', 'current_hotel_id'),
-    hire_date: a.date(),
-    termination_date: a.date(),
+    employeeType: a.string().required(), // 'permanente', 'temporal'
+    payrollType: a.string().required(), // 'timesheet', 'Workrecord'
+    isActive: a.boolean().default(true), // Restaurado de is_active
+    isBlacklisted: a.boolean().default(false), // Restaurado de is_blacklisted
+    blacklistReason: a.string(), // Restaurado de blacklist_reason
+    hotelId: a.id().required(), // Restaurado de current_hotel_id
+    hotel: a.belongsTo('Hotel', 'hotelId'),
+    hireDate: a.date(), // Restaurado de hire_date
+    terminationDate: a.date(), // Restaurado de termination_date
     documentacion_completa: a.boolean().default(false),
     city: a.string(),
     image_url: a.string(),
     document_urls: a.string().array(),
-    last_reviewed_timestamp: a.string(),
-    attendance: a.hasMany('AttendanceRecord', 'employee_id'),
-    status_history: a.hasMany('EmployeeStatusChange', 'employee_id'),
-    qa_audits: a.hasMany('QAAudit', 'employee_id'),
+    lastReviewedTimestamp: a.string(), // Restaurado de last_reviewed_timestamp
+    attendance: a.hasMany('AttendanceRecord', 'employeeId'),
+    status_history: a.hasMany('EmployeeStatusChange', 'employeeId'),
+    qa_audits: a.hasMany('QAAudit', 'employeeId'),
   }).authorization((allow) => [allow.authenticated()]),
 
   EmployeeStatusChange: a.model({
     id: a.id(),
-    employee_id: a.id().required(),
-    employee: a.belongsTo('Employee', 'employee_id'),
-    old_status: a.string(),
-    new_status: a.string().required(),
+    employeeId: a.id().required(),
+    employee: a.belongsTo('Employee', 'employeeId'),
+    oldStatus: a.string(),
+    newStatus: a.string().required(),
     reason: a.string(),
-    changed_by: a.string().required(),
-    change_date: a.datetime().required(),
+    changedBy: a.string().required(),
+    changeDate: a.datetime().required(),
   }).authorization((allow) => [allow.authenticated()]),
 
   // 4. RECLUTAMIENTO Y SOLICITUDES
   StaffingRequest: a.model({
     id: a.id(),
     request_number: a.string().required(),
-    hotel_id: a.id().required(),
-    hotel: a.belongsTo('Hotel', 'hotel_id'),
+    hotelId: a.id().required(), // Restaurado de hotel_id
+    hotel: a.belongsTo('Hotel', 'hotelId'),
     role: a.string().required(),
     num_of_people: a.integer().required(),
     status: a.string().required(), // 'Pendiente', 'Parcial', 'Completada', 'Cancelada'
@@ -111,75 +112,75 @@ const schema = a.schema({
     request_type: a.string(), // 'permanente', 'temporal'
     notes: a.string(),
     is_archived: a.boolean().default(false),
-    history: a.hasMany('StaffingRequestHistory', 'request_id'),
+    history: a.hasMany('StaffingRequestHistory', 'requestId'),
   }).authorization((allow) => [allow.authenticated()]),
 
   StaffingRequestHistory: a.model({
     id: a.id(),
-    request_id: a.id().required(),
-    request: a.belongsTo('StaffingRequest', 'request_id'),
-    change_description: a.string().required(),
-    changed_by: a.string().required(),
-    created_at: a.datetime().required(),
+    requestId: a.id().required(),
+    request: a.belongsTo('StaffingRequest', 'requestId'),
+    changeDescription: a.string().required(),
+    changedBy: a.string().required(),
+    createdAt: a.datetime().required(),
   }).authorization((allow) => [allow.authenticated()]),
 
   // 4.1 APLICACIONES DE CANDIDATOS
   Application: a.model({
     id: a.id(),
-    candidate_name: a.string().required(),
+    candidateName: a.string().required(), // Restaurado de candidate_name
     phone: a.string().required(),
     email: a.string(),
-    hotel_id: a.id().required(),
-    hotel: a.belongsTo('Hotel', 'hotel_id'),
+    hotelId: a.id().required(), // Restaurado de hotel_id
+    hotel: a.belongsTo('Hotel', 'hotelId'),
     role: a.string().required(),
     status: a.string().default('pendiente'), // 'pendiente', 'completada', 'empleado_creado'
-    applied_at: a.datetime(),
+    appliedAt: a.datetime(), // Restaurado de applied_at
     notes: a.string(),
   }).authorization((allow) => [allow.authenticated()]),
 
   // 5. ASISTENCIA Y OPERACIONES
   AttendanceRecord: a.model({
     id: a.id(),
-    employee_id: a.id().required(),
-    employee: a.belongsTo('Employee', 'employee_id'),
-    hotel_id: a.id().required(),
-    hotel: a.belongsTo('Hotel', 'hotel_id'),
+    employeeId: a.id().required(), // Restaurado de employee_id
+    employee: a.belongsTo('Employee', 'employeeId'),
+    hotelId: a.id().required(), // Restaurado de hotel_id
+    hotel: a.belongsTo('Hotel', 'hotelId'),
     date: a.date().required(),
-    check_in: a.datetime(),
-    check_out: a.datetime(),
+    checkIn: a.datetime(), // Restaurado de check_in
+    checkOut: a.datetime(), // Restaurado de check_out
     latitude: a.float(),
     longitude: a.float(),
     status: a.string(),
-    is_gps_verified: a.boolean().default(false),
-    distance_from_hotel: a.float(),
+    isGpsVerified: a.boolean().default(false), // Restaurado de is_gps_verified
+    distanceFromHotel: a.float(), // Restaurado de distance_from_hotel
   }).authorization((allow) => [allow.authenticated()]),
 
   PayrollReview: a.model({
     id: a.id(),
-    hotel_id: a.id().required(),
-    hotel: a.belongsTo('Hotel', 'hotel_id'),
-    period_start: a.date().required(),
-    period_end: a.date().required(),
-    total_hours: a.float(),
-    total_amount: a.float(),
+    hotelId: a.id().required(), // Restaurado de hotel_id
+    hotel: a.belongsTo('Hotel', 'hotelId'),
+    periodStart: a.date().required(), // Restaurado de period_start
+    periodEnd: a.date().required(), // Restaurado de period_end
+    totalHours: a.float(), // Restaurado de total_hours
+    totalAmount: a.float(), // Restaurado de total_amount
     status: a.string(),
-    reviewed_by: a.string(),
+    reviewedBy: a.string(), // Restaurado de reviewed_by
   }).authorization((allow) => [allow.authenticated()]),
 
   // 6. CALIDAD (QA)
   QAAudit: a.model({
     id: a.id(),
-    audit_type: a.string().required(), // 'hotel', 'staff', 'room'
-    hotel_id: a.id().required(),
-    hotel: a.belongsTo('Hotel', 'hotel_id'),
-    employee_id: a.id(),
-    employee: a.belongsTo('Employee', 'employee_id'),
-    room_number: a.string(),
-    auditor_name: a.string().required(),
+    auditType: a.string().required(), // Restaurado de audit_type
+    hotelId: a.id().required(), // Restaurado de hotel_id
+    hotel: a.belongsTo('Hotel', 'hotelId'),
+    employeeId: a.id(), // Restaurado de employee_id
+    employee: a.belongsTo('Employee', 'employeeId'),
+    roomNumber: a.string(), // Restaurado de room_number
+    auditorName: a.string().required(), // Restaurado de auditor_name
     score: a.float().required(),
     observations: a.string(),
-    checklist_results: a.json(),
-    audit_date: a.date().required(),
+    checklistResults: a.json(), // Restaurado de checklist_results
+    auditDate: a.date().required(), // Restaurado de audit_date
   }).authorization((allow) => [allow.authenticated()]),
 
   // 7. CONFIGURACIÓN
@@ -187,7 +188,7 @@ const schema = a.schema({
     id: a.id(),
     name: a.string().required(),
     description: a.string(),
-    is_active: a.boolean().default(true),
+    isActive: a.boolean().default(true), // Restaurado de is_active
   }).authorization((allow) => [
     allow.authenticated(),
     allow.publicApiKey().to(['read']),

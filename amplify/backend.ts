@@ -32,7 +32,7 @@ if (botLambda.addEnvironment) {
     backend.data.resources.cfnResources.cfnGraphqlApi.attrGraphQlUrl
   );
   // Inyectar variables para el bot nativo
-  botLambda.addEnvironment('BOT_TOKEN', process.env.BOT_TOKEN || '');
+  botLambda.addEnvironment('TELEGRAM_BOT_TOKEN', process.env.BOT_TOKEN || '');
   botLambda.addEnvironment('AMPLIFY_DATA_GRAPHQL_API_KEY', process.env.AMPLIFY_DATA_GRAPHQL_API_KEY || '');
 }
 

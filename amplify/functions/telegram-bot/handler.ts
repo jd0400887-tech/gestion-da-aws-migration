@@ -36,7 +36,7 @@ const GET_POSITION = `query GetPosition($id: ID!) { getPosition(id: $id) { id na
 const CREATE_REQUEST = `mutation CreateRequest($input: CreateStaffingRequestInput!) { createStaffingRequest(input: $input) { id request_number } }`;
 
 export const handler: Handler = async (event) => {
-  const token = process.env.BOT_TOKEN || '';
+  const token = process.env.TELEGRAM_BOT_TOKEN || '';
   let chatId = '0';
 
   try {
