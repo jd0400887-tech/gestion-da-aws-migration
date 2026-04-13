@@ -1,6 +1,7 @@
 import { generateClient } from 'aws-amplify/api';
 import type { Schema } from '../../amplify/data/resource';
 import type { Hotel } from '../types';
+import { toTitleCase } from '../utils/stringUtils';
 
 /**
  * SERVICIO PROFESIONAL DE HOTELES (AWS RDS)
@@ -20,10 +21,10 @@ export const hotelService = {
       return (hotels || []).map(h => ({
         id: h.id,
         hotelCode: h.hotel_code || 'S/C',
-        name: h.name,
-        city: h.city,
+        name: toTitleCase(h.name),
+        city: toTitleCase(h.city),
         address: h.address || '',
-        managerName: h.manager_name || '',
+        managerName: toTitleCase(h.manager_name || ''),
         phone: h.phone || '',
         email: h.email || '',
         latitude: h.latitude || null,
@@ -48,10 +49,10 @@ export const hotelService = {
 
       await client.models.Hotel.create({
         hotel_code: generatedCode,
-        name: hotel.name || 'Nuevo Hotel',
-        city: hotel.city || 'Ciudad',
+        name: toTitleCase(hotel.name || 'Nuevo Hotel'),
+        city: toTitleCase(hotel.city || 'Ciudad'),
         address: hotel.address || '',
-        manager_name: hotel.managerName || '',
+        manager_name: toTitleCase(hotel.managerName || ''),
         phone: hotel.phone || '',
         email: hotel.email || '',
         latitude: hotel.latitude,
@@ -70,10 +71,10 @@ export const hotelService = {
       const client = this.getClient();
       await client.models.Hotel.update({
         id,
-        name: updates.name,
-        city: updates.city,
+        name: updates.name ? toTitleCase(updates.name) : undefined,
+        city: updates.city ? toTitleCase(updates.city) : undefined,
         address: updates.address,
-        manager_name: updates.managerName,
+        manager_name: updates.managerName ? toTitleCase(updates.managerName) : undefined,
         phone: updates.phone,
         email: updates.email,
         latitude: updates.latitude,

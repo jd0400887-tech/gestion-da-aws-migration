@@ -66,15 +66,23 @@ function DashboardPage() {
   const statsFilter = useMemo(() => ({ zone: selectedZone }), [selectedZone]);
   const { stats: globalStats, loading: statsLoading } = useDashboardStats(statsFilter);
 
-  // Cargar promedio de calidad desde AWS
+  // Cargar promedio de calidad desde AWS filtrado por zona
   useEffect(() => {
     const fetchQaScore = async () => {
       try {
         const client = generateClient<Schema>();
         const { data } = await client.models.QAAudit.list();
         
-        if (data && data.length > 0) {
-          const avg = Math.round(data.reduce((acc, curr) => acc + curr.score, 0) / data.length);
+        // Determinar qué hoteles pertenecen a la zona seleccionada
+        const zoneHotelIds = hotels
+          .filter(h => selectedZone === 'Todas' || h.zone === selectedZone)
+          .map(h => h.id);
+
+        // Filtrar auditorías que pertenezcan a esos hoteles
+        const zoneAudits = data.filter(audit => zoneHotelIds.includes(audit.hotel_id || ''));
+
+        if (zoneAudits && zoneAudits.length > 0) {
+          const avg = Math.round(zoneAudits.reduce((acc, curr) => acc + curr.score, 0) / zoneAudits.length);
           setQaScore(avg);
         } else {
           setQaScore(null);
@@ -83,8 +91,8 @@ function DashboardPage() {
         console.error("Error al cargar score QA de AWS:", e);
       }
     };
-    if (profile) fetchQaScore();
-  }, [profile, selectedZone]);
+    if (profile && hotels.length > 0) fetchQaScore();
+  }, [profile, selectedZone, hotels]);
 
   const [isCheckingIn, setIsCheckingIn] = useState(false);
   const [snackbarInfo, setSnackbarInfo] = useState({ open: false, message: '', severity: 'success' as 'success' | 'error' | 'warning' | 'info' });
@@ -95,7 +103,14 @@ function DashboardPage() {
 
   const filteredHotels = hotels.filter(h => selectedZone === 'Todas' || h.zone === selectedZone);
   const hotelsWithLocation = filteredHotels.filter(h => h.latitude != null && h.longitude != null);
-  const mapCenter: [number, number] = [25.7617, -80.1918];
+  
+  // CENTRO DEL MAPA DINÁMICO: Centrar en el primer hotel con ubicación, o en un punto central por defecto
+  const mapCenter = useMemo((): [number, number] => {
+    if (hotelsWithLocation.length > 0) {
+      return [hotelsWithLocation[0].latitude!, hotelsWithLocation[0].longitude!];
+    }
+    return [20.6231, -103.3496]; // Centro de México (Guadalajara) como respaldo
+  }, [hotelsWithLocation]);
 
   const handleCheckIn = async () => {
     setIsCheckingIn(true);

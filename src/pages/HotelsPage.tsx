@@ -192,23 +192,101 @@ export default function HotelsPage() {
                     }} 
                   />
                 </Box>
-                <CardContent sx={{ flexGrow: 1, p: 2.5 }}>
-                  <Typography variant="h6" sx={{ fontWeight: 800, mb: 1.5, lineHeight: 1.2 }}>
-                    <Link component={RouterLink} to={`/hotel/${hotel.id}`} sx={{ color: 'text.primary', textDecoration: 'none', '&:hover': { color: 'primary.main' } }}>{hotel.name}</Link>
+                <CardContent sx={{ 
+                  flexGrow: 1, p: 3, pt: 4,
+                  background: 'linear-gradient(180deg, rgba(255, 87, 34, 0.03) 0%, rgba(0, 0, 0, 0) 100%)'
+                }}>
+                  <Typography 
+                    variant="h4" 
+                    sx={{ 
+                      fontWeight: 900, 
+                      mb: 0.5, 
+                      lineHeight: 1, 
+                      letterSpacing: '-0.5px', // Menos compacto para nitidez
+                      color: '#94A3B8', // Gris Platino Premium
+                      textTransform: 'uppercase',
+                      display: '-webkit-box',
+                      WebkitLineClamp: 2,
+                      WebkitBoxOrient: 'vertical',
+                      overflow: 'hidden',
+                      transition: 'all 0.3s ease'
+                    }}
+                  >
+                    <Link 
+                      component={RouterLink} 
+                      to={`/hotel/${hotel.id}`} 
+                      sx={{ 
+                        color: 'inherit', 
+                        textDecoration: 'none', 
+                        '&:hover': { color: 'primary.main' } 
+                      }}
+                    >
+                      {hotel.name}
+                    </Link>
                   </Typography>
-                  <Stack spacing={1}>
-                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}><LocationCityIcon sx={{ fontSize: 16, color: 'primary.main', opacity: 0.7 }} /><Typography variant="body2" color="text.secondary">{hotel.city}</Typography></Box>
-                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}><PeopleIcon sx={{ fontSize: 16, color: 'primary.main', opacity: 0.7 }} /><Typography variant="body2" sx={{ fontWeight: 600 }}>{hotel.activeEmployees} <Typography component="span" variant="caption" color="text.secondary">/ {hotel.totalEmployees} Personal</Typography></Typography></Box>
-                  </Stack>
+                  
+                  <Typography variant="caption" sx={{ fontWeight: 800, color: 'primary.main', textTransform: 'uppercase', letterSpacing: '2px', display: 'block', mb: 3 }}>
+                    {hotel.city}
+                  </Typography>
+
+                  <Box sx={{ mt: 'auto' }}>
+                    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
+                      <Typography variant="caption" sx={{ fontWeight: 800, color: 'text.secondary', fontSize: '0.65rem' }}>PLANTILLA OPERATIVA</Typography>
+                      <Typography variant="caption" sx={{ fontWeight: 900, color: 'primary.main' }}>
+                        {hotel.activeEmployees || 0} / {hotel.totalEmployees || 0}
+                      </Typography>
+                    </Box>
+                    <Box sx={{ height: 4, width: '100%', bgcolor: 'rgba(255,255,255,0.05)', borderRadius: 2, overflow: 'hidden' }}>
+                      <Box 
+                        sx={{ 
+                          height: '100%', 
+                          width: `${Math.min(((hotel.activeEmployees || 0) / (hotel.totalEmployees || 1)) * 100, 100)}%`, 
+                          bgcolor: 'primary.main',
+                          boxShadow: '0 0 10px rgba(255, 87, 34, 0.5)',
+                          transition: 'width 1s ease-in-out'
+                        }} 
+                      />
+                    </Box>
+                  </Box>
                 </CardContent>
-                <Divider sx={{ opacity: 0.05 }} />
-                <CardActions sx={{ justifyContent: 'space-between', p: 1.5 }}>
-                  <Button size="small" component={RouterLink} to={`/hotel/${hotel.id}`} sx={{ fontWeight: 'bold', textTransform: 'none' }}>Ver Detalles</Button>
-                  <Stack direction="row" spacing={0.5}>
-                    <IconButton size="small" onClick={() => handleOpenEditModal(hotel)} sx={{ color: 'primary.main', backgroundColor: 'rgba(255, 87, 34, 0.05)' }}><EditIcon fontSize="small" /></IconButton>
-                    {isAdmin && <IconButton size="small" onClick={() => handleDelete(hotel.id)} sx={{ color: 'error.main', backgroundColor: 'rgba(244, 67, 54, 0.05)' }}><DeleteIcon fontSize="small" /></IconButton>}
+
+                <Box sx={{ px: 2, pb: 2, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <Button 
+                    component={RouterLink} 
+                    to={`/hotel/${hotel.id}`} 
+                    size="small"
+                    sx={{ 
+                      fontWeight: 800, 
+                      fontSize: '0.7rem', 
+                      color: 'primary.main',
+                      '&:hover': { bgcolor: 'rgba(255, 87, 34, 0.05)' }
+                    }}
+                  >
+                    GESTIONAR ACTIVO
+                  </Button>
+                  <Stack direction="row" spacing={1}>
+                    <Tooltip title="Editar">
+                      <IconButton 
+                        size="small" 
+                        onClick={() => handleOpenEditModal(hotel)}
+                        sx={{ color: 'rgba(255,255,255,0.3)', '&:hover': { color: 'primary.main', bgcolor: 'rgba(255, 87, 34, 0.1)' } }}
+                      >
+                        <EditIcon fontSize="small" />
+                      </IconButton>
+                    </Tooltip>
+                    {isAdmin && (
+                      <Tooltip title="Eliminar">
+                        <IconButton 
+                          size="small" 
+                          onClick={() => handleDelete(hotel.id)}
+                          sx={{ color: 'rgba(255,255,255,0.2)', '&:hover': { color: 'error.main', bgcolor: 'rgba(244, 67, 54, 0.1)' } }}
+                        >
+                          <DeleteIcon fontSize="small" />
+                        </IconButton>
+                      </Tooltip>
+                    )}
                   </Stack>
-                </CardActions>
+                </Box>
               </Card>
             </Grid>
           ))}

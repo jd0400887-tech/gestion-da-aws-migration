@@ -4,7 +4,7 @@ import {
   InputAdornment, Select, MenuItem, FormControl, InputLabel, Chip, 
   IconButton, Dialog, DialogActions, DialogContent, DialogContentText, 
   DialogTitle, Stack, Avatar, Divider, Tooltip, CircularProgress, useTheme,
-  FormControlLabel, Switch
+  FormControlLabel, Switch, Card, CardContent, Badge
 } from '@mui/material';
 
 // Iconos
@@ -60,95 +60,128 @@ const ApplicationCard = ({ application, onStatusChange, onAddEmployee, onDelete,
       position: 'relative',
       overflow: 'hidden',
       transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
-      backgroundColor: isLight ? '#FFFFFF' : 'rgba(255,255,255,0.02)',
+      backgroundColor: isLight ? '#FFFFFF' : 'rgba(15, 23, 42, 0.6)',
       border: '1px solid rgba(255,255,255,0.05)',
       '&:hover': {
         transform: 'translateY(-8px)',
-        boxShadow: `0 12px 30px -10px rgba(0,0,0,0.3)`,
+        boxShadow: `0 15px 35px rgba(0,0,0,0.4)`,
         borderColor: 'primary.main',
       }
     }}>
-      <CardContent sx={{ p: 3 }}>
-        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 2 }}>
+      <CardContent sx={{ p: 3, pt: 4 }}>
+        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 3 }}>
           <Box sx={{ display: 'flex', gap: 2, alignItems: 'center' }}>
-            <Avatar sx={{ bgcolor: 'primary.main', width: 48, height: 48, fontWeight: 'bold' }}>
-              {application.candidate_name ? application.candidate_name[0] : '?'}
-            </Avatar>
+            <Badge 
+              overlap="circular" 
+              anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
+              variant="dot"
+              sx={{ '& .MuiBadge-badge': { bgcolor: application.status === 'empleado_creado' ? '#4caf50' : '#ff9800', boxShadow: '0 0 0 2px #0F172A' } }}
+            >
+              <Avatar 
+                sx={{ 
+                  background: 'linear-gradient(135deg, #FF5722 0%, #FF8A65 100%)', 
+                  width: 56, height: 56, 
+                  fontWeight: 900,
+                  fontSize: '1.4rem',
+                  boxShadow: '0 4px 12px rgba(255, 87, 34, 0.4)'
+                }}
+              >
+                {application.candidate_name ? application.candidate_name[0] : '?'}
+              </Avatar>
+            </Badge>
             <Box>
-              <Typography variant="h6" sx={{ fontWeight: 800, lineHeight: 1.2 }}>
+              <Typography 
+                variant="h5" 
+                sx={{ 
+                  fontWeight: 900, 
+                  color: '#94A3B8', // Gris Platino Premium
+                  textTransform: 'uppercase',
+                  letterSpacing: '-0.5px',
+                  lineHeight: 1.1,
+                  mb: 0.5,
+                  transition: 'all 0.3s ease'
+                }}
+              >
                 {application.candidate_name}
               </Typography>
               <Chip 
-                icon={config.icon}
                 label={config.label.toUpperCase()}
-                color={config.color}
                 size="small"
-                sx={{ height: 20, fontSize: '0.6rem', fontWeight: 900, mt: 0.5 }}
+                sx={{ 
+                  height: 18, fontSize: '0.55rem', fontWeight: 900, 
+                  bgcolor: 'rgba(255,255,255,0.05)', 
+                  color: theme.palette[config.color as 'primary' | 'secondary' | 'error' | 'info' | 'success' | 'warning'].main,
+                  borderRadius: 1
+                }}
               />
             </Box>
           </Box>
-          <Tooltip title="Eliminar Aplicación">
-            <IconButton size="small" onClick={() => onDelete(application.id)} sx={{ color: 'error.light', '&:hover': { bgcolor: 'rgba(244, 67, 54, 0.1)' } }}>
-              <DeleteIcon fontSize="small" />
-            </IconButton>
-          </Tooltip>
+          <IconButton size="small" onClick={() => onDelete(application.id)} sx={{ color: 'rgba(255,255,255,0.1)', '&:hover': { color: 'error.main', bgcolor: 'rgba(244, 67, 54, 0.1)' } }}>
+            <DeleteIcon fontSize="small" />
+          </IconButton>
         </Box>
 
-        <Divider sx={{ my: 2, opacity: 0.05 }} />
+        <Stack spacing={2} sx={{ mb: 3 }}>
+          <Box sx={{ p: 1.5, borderRadius: 2, bgcolor: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.05)' }}>
+            <Stack direction="row" spacing={1.5} alignItems="center">
+              <CategoryIcon sx={{ color: 'primary.main', fontSize: 18, opacity: 0.8 }} />
+              <Box>
+                <Typography variant="caption" sx={{ fontWeight: 800, color: 'text.secondary', display: 'block', lineHeight: 1 }}>CARGO SOLICITADO:</Typography>
+                <Typography variant="body2" sx={{ fontWeight: 800, color: 'white' }}>{toTitleCase(application.role || 'N/A')}</Typography>
+              </Box>
+            </Stack>
+          </Box>
 
-        <Stack spacing={1.5}>
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
-            <CategoryIcon sx={{ fontSize: 18, color: 'primary.main', opacity: 0.7 }} />
-            <Typography variant="body2" sx={{ fontWeight: 600 }}>{toTitleCase(application.role || 'N/A')}</Typography>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, px: 1 }}>
+            <ApartmentIcon sx={{ fontSize: 18, color: 'text.secondary', opacity: 0.6 }} />
+            <Typography variant="body2" sx={{ fontWeight: 700, color: 'text.secondary' }}>{getHotelName(application.hotel_id)}</Typography>
           </Box>
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
-            <ApartmentIcon sx={{ fontSize: 18, color: 'primary.main', opacity: 0.7 }} />
-            <Typography variant="body2" sx={{ fontWeight: 500 }}>{getHotelName(application.hotel_id)}</Typography>
-          </Box>
+
           {application.phone && application.phone !== 'N/A' && (
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
-              <PhoneIcon sx={{ fontSize: 18, color: 'success.main' }} />
-              <Typography variant="body2" sx={{ fontWeight: 700 }}>{application.phone}</Typography>
-              <IconButton size="small" onClick={() => handleWhatsApp(application.phone)} sx={{ color: '#25D366', p: 0 }}>
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, px: 1 }}>
+              <PhoneIcon sx={{ fontSize: 18, color: '#4CAF50' }} />
+              <Typography variant="body2" sx={{ fontWeight: 900, color: 'white' }}>{application.phone}</Typography>
+              <IconButton size="small" onClick={() => handleWhatsApp(application.phone)} sx={{ color: '#25D366', p: 0, '&:hover': { bgcolor: 'rgba(37, 211, 102, 0.1)' } }}>
                 <WhatsAppIcon fontSize="small" />
               </IconButton>
             </Box>
           )}
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
-            <HistoryIcon sx={{ fontSize: 18, color: 'text.disabled' }} />
-            <Typography variant="caption" color="text.secondary">
-              Llegada: {new Date(application.created_at).toLocaleDateString()}
-            </Typography>
-          </Box>
         </Stack>
 
-        <Box sx={{ mt: 3, display: 'flex', flexWrap: 'wrap', gap: 1 }}>
+        <Box sx={{ mt: 'auto' }}>
           {application.status === 'pendiente' && (
             <Button 
               variant="contained" 
-              color="primary"
               onClick={() => onStatusChange(application.id, 'completada')}
-              size="small"
               fullWidth
-              sx={{ borderRadius: 2, textTransform: 'none', fontWeight: 900 }}
+              sx={{ 
+                borderRadius: 2, 
+                textTransform: 'none', 
+                fontWeight: 900,
+                py: 1,
+                background: 'linear-gradient(45deg, #FF5722 30%, #FF8A65 90%)',
+                boxShadow: '0 4px 12px rgba(255, 87, 34, 0.3)'
+              }}
             >
-              Validar Datos en Persona
+              Validar Candidato
             </Button>
           )}
           
           {application.status === 'completada' && (
             <Button 
               variant="contained" 
-              color="success" 
               fullWidth
               startIcon={<PersonAddIcon />}
               onClick={() => onAddEmployee(application)} 
               sx={{ 
                 borderRadius: 2, fontWeight: 900,
+                py: 1,
+                textTransform: 'none',
+                background: 'linear-gradient(45deg, #4CAF50 30%, #81C784 90%)',
                 boxShadow: '0 4px 12px rgba(76, 175, 80, 0.3)'
               }}
             >
-              Dar de Alta Empleado
+              Dar de Alta en Nómina
             </Button>
           )}
         </Box>
@@ -156,9 +189,6 @@ const ApplicationCard = ({ application, onStatusChange, onAddEmployee, onDelete,
     </Card>
   );
 };
-
-// --- REST OF THE IMPORTS FOR UI ---
-import { Card, CardContent } from '@mui/material';
 
 export default function ApplicationsPage() {
   const { applications, loading, updateApplicationStatus, deleteApplication, addApplication } = useApplications();

@@ -1,6 +1,7 @@
 import { generateClient } from 'aws-amplify/api';
 import type { Schema } from '../../amplify/data/resource';
 import type { Employee } from '../types';
+import { toTitleCase } from '../utils/stringUtils';
 
 /**
  * SERVICIO PROFESIONAL DE EMPLEADOS (AWS RDS)
@@ -31,7 +32,7 @@ export const employeeService = {
       return employees.map(emp => ({
         id: emp.id,
         employeeNumber: emp.employee_number || 'N/A',
-        name: emp.name,
+        name: toTitleCase(emp.name),
         hotelId: emp.current_hotel_id || '',
         role: emp.role,
         isActive: emp.is_active ?? true,
@@ -63,7 +64,7 @@ export const employeeService = {
 
       await client.models.Employee.create({
         employee_number: finalNumber,
-        name: employee.name || 'Sin Nombre',
+        name: toTitleCase(employee.name || 'Sin Nombre'),
         role: employee.role || 'Sin Cargo',
         current_hotel_id: employee.hotelId || '',
         is_active: employee.isActive ?? true,
@@ -86,7 +87,7 @@ export const employeeService = {
       const client = this.getClient();
       await client.models.Employee.update({
         id,
-        name: updates.name,
+        name: updates.name ? toTitleCase(updates.name) : undefined,
         role: updates.role,
         current_hotel_id: updates.hotelId,
         is_active: updates.isActive,

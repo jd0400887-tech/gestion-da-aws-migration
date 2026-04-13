@@ -2,6 +2,42 @@
 
 Todos los cambios notables en este proyecto serán documentados en este archivo.
 
+## [0.9.0] - 2026-04-13 (Sesión 10 - Oranje Premium Experience: Renovación Visual & UX)
+
+### Añadido
+- **Identidad de Marca Unificada:** Implementación del logotipo "Oranje" estilizado en el sidebar con tipografía pesada y degradados de marca.
+- **Sidebar Inteligente (Modo Compacto):** Nuevo sistema de navegación que se contrae automáticamente para maximizar el espacio de trabajo y se expande suavemente al pasar el mouse (Efecto Hover Premium).
+- **Dashboard de Reclutamiento 2.0:** Sincronización total con AWS RDS. Nuevo Donut Chart de cumplimiento 72h, Ranking de Zonas con barras de carga y Tabla de Solicitudes Críticas rediseñada con barras de progreso.
+- **Normalización de Datos Maestro:** Implementación automática de `toTitleCase` en los servicios de Hoteles y Empleados. Toda la información guardada en AWS ahora mantiene un formato profesional ("Juan Perez" en lugar de "JUAN PEREZ").
+- **Estados Vacíos Motivadores:** Inclusión de "Empty States" elegantes en el dashboard para mejorar la experiencia de usuario cuando no hay tareas pendientes.
+
+### Cambiado
+- **Rediseño de Tarjetas Premium (Hoteles, Personal, Aplicaciones):** Unificación del lenguaje visual con tipografía Black (900), color Gris Platino nítido y eliminación de sombras borrosas para una definición perfecta de los textos.
+- **Acciones Minimalistas:** Sustitución de barras de botones grises por iconos de gestión integrados que aparecen al interactuar con las tarjetas.
+- **Saludo Institucional:** Rediseño de la AppBar con saludo centrado y cambio de marca a "SISTEMA DE GESTIÓN ORANJE".
+- **Mapa Inteligente:** El mapa del Dashboard ahora se centra automáticamente en los activos de la zona del inspector, eliminando coordenadas genéricas de Miami.
+
+### Corregido
+- **Cálculo de Score QA:** Ajuste matemático para que el promedio de calidad en el dashboard refleje exclusivamente las auditorías de la zona seleccionada.
+- **Error MUI Out-of-Range:** Corrección definitiva de avisos en consola mediante la integración de estados de aplicación (Validado/Contratado) en los selectores de solicitudes.
+- **Integridad Técnica:** Limpieza de importaciones duplicadas y errores de sintaxis en `ApplicationsPage.tsx`.
+
+## [0.8.0] - 2026-04-13 (Sesión 9 - Seguridad Blindada: Restricción de Zona y Limpieza de Roles)
+
+### Añadido
+- **Seguridad de Zona Estricta (INSPECTOR):** Implementación de filtrado infranqueable para el rol de Inspector. Ahora solo visualizan datos (Dashboard, Hoteles, Personal, Solicitudes, Aplicaciones, QA y Asistencia) de la zona asignada en el panel de usuarios.
+- **Carga de Perfil Granular:** Actualización de `AuthContext.tsx` para mapear `assigned_zone` y todos los permisos específicos (can_edit_*, can_view_*, can_manage_users, etc.) desde AWS RDS.
+- **Soporte de Roles Senior:** Integración completa del rol `COORDINATOR` en la interfaz de tipos y lógica de permisos del sistema.
+- **Denegación de Acceso Preventiva:** Si un Inspector no tiene zona asignada, el sistema bloquea preventivamente la visualización de datos globales para evitar filtraciones.
+
+### Cambiado
+- **Normalización de Roles:** Eliminación del rol `BUSINESS_DEVELOPER` (no utilizado) para simplificar la gestión de usuarios y mantener el enfoque en la operación real (ADMIN, COORDINATOR, RECRUITER e INSPECTOR).
+- **Dashboard de Inspección:** El panel principal ahora refleja automáticamente la zona asignada del usuario sin necesidad de filtros manuales previos.
+
+### Corregido
+- **Falla de Carga de Perfil:** Resolución del "punto ciego" donde el sistema ignoraba la zona guardada en la base de datos al iniciar sesión.
+- **Vulnerabilidad de Datos Globales:** Corrección en los módulos de Asistencia y Aplicaciones que permitían ver toda la cadena si la zona del usuario era indefinida.
+
 ## [0.7.1] - 2026-04-11 (Sesión 8 - Sincronización de Cargos y Normalización)
 
 ### Añadido

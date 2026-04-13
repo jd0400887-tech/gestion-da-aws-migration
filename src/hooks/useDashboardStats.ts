@@ -50,6 +50,47 @@ export function useDashboardStats(filter?: { hotelIds?: string[], zone?: string 
         ['Pendiente', 'Enviada a Reclutamiento', 'En Proceso'].includes(req.status)
       );
 
+      // MÉTRICAS ESPECÍFICAS DE RECLUTAMIENTO
+      const pendingRequests = filteredRequests.filter(req => req.status === 'Pendiente').length;
+      
+      // Calcular Urgencias (Inician hoy o mañana)
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      const tomorrow = new Date(today);
+      tomorrow.setDate(tomorrow.getDate() + 1);
+      
+      const urgentStarts = unfulfilledRequests.filter(req => {
+        const startDate = new Date(req.start_date);
+        return startDate <= tomorrow;
+      }).length;
+
+      // Calcular Tasa de Cobertura
+      const totalNeeded = filteredRequests.reduce((acc, req) => acc + (req.num_of_people || 0), 0);
+      const totalCovered = filteredRequests.reduce((acc, req) => acc + (req.candidate_count || 0), 0);
+      const coverageRate = totalNeeded > 0 ? Math.round((totalCovered / totalNeeded) * 100) : 0;
+
+      // Solicitudes por Zona para Gráfico de Barras
+      const zoneCounts: { [key: string]: number } = {};
+      safeRequests.forEach(req => {
+        const hotel = hotels.find(h => h.id === req.hotel_id);
+        const zone = hotel?.zone || 'Sin Zona';
+        zoneCounts[zone] = (zoneCounts[zone] || 0) + 1;
+      });
+      const requestsByZone = Object.entries(zoneCounts).map(([zone, count]) => ({ zone, count }));
+
+      // Cumplimiento 72h (Real)
+      const now = new Date().getTime();
+      const compliance72h = { onTime: 0, critical: 0, overdue: 0 };
+      
+      unfulfilledRequests.forEach(req => {
+        const created = new Date(req.created_at).getTime();
+        const hoursOpen = (now - created) / (1000 * 60 * 60);
+        
+        if (hoursOpen <= 24) compliance72h.onTime++;
+        else if (hoursOpen <= 72) compliance72h.critical++;
+        else compliance72h.overdue++;
+      });
+
       // 4. FILTRAR APLICACIONES
       const safeApplications = Array.isArray(applications) ? applications : [];
       const pendingApplicationsCount = safeApplications.filter(app => {
@@ -71,10 +112,15 @@ export function useDashboardStats(filter?: { hotelIds?: string[], zone?: string 
         totalHotels: filteredHotels.length,
         activeEmployees: activeEmployeesCount,
         pendingApplications: pendingApplicationsCount,
+        activeRequestsCount: unfulfilledRequests.length,
         unfulfilledRequestsCount: unfulfilledRequests.length,
+        pendingRequests,
+        urgentStarts,
+        coverageRate,
+        requestsByZone,
         unfulfilledRequests,
         visitsThisWeek,
-        compliance72h: { onTime: 0, critical: 0, overdue: 0 },
+        compliance72h,
         incompleteDocsCount: filteredEmployees.filter(e => !e.documentacion_completa).length,
       };
     } catch (error) {

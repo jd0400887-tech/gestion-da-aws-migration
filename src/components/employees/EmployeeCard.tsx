@@ -74,32 +74,35 @@ export default function EmployeeCard({ employee, hotels, onEdit, onDelete }: Emp
 
   return (
     <Card sx={cardStyles}>
-      <CardContent sx={{ p: 2.5 }}>
-        {/* HEADER: AVATAR + NOMBRE + IQ */}
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 2.5 }}>
-          <Box sx={{ position: 'relative' }}>
+      <CardContent sx={{ p: 3, pt: 4 }}>
+        {/* IDENTIDAD: AVATAR Y NOMBRE IMPONENTE */}
+        <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center', mb: 3 }}>
+          <Box sx={{ position: 'relative', mb: 2 }}>
             <Avatar 
               sx={{ 
-                width: 52, height: 56, // Ligeramente estirado para look premium
-                borderRadius: 2.5,
-                bgcolor: isBlacklisted ? 'error.main' : 'primary.main',
-                fontSize: '1.1rem', fontWeight: 900,
-                boxShadow: '0 4px 12px rgba(0,0,0,0.1)'
+                width: 80, height: 80,
+                background: isBlacklisted 
+                  ? 'linear-gradient(135deg, #f44336 0%, #b71c1c 100%)'
+                  : 'linear-gradient(135deg, #FF5722 0%, #FF8A65 100%)', 
+                fontWeight: 900,
+                fontSize: '1.8rem',
+                boxShadow: isBlacklisted ? '0 8px 20px rgba(244, 67, 54, 0.4)' : '0 8px 20px rgba(255, 87, 34, 0.4)',
+                border: '3px solid rgba(255,255,255,0.1)'
               }}
             >
               {getInitials(employee.name)}
             </Avatar>
             
-            {/* IQ BADGE MINI SOBRE AVATAR */}
+            {/* INDICADOR DE CALIDAD POSICIONADO ESTRATÉGICAMENTE */}
             {qualityConfig && !isBlacklisted && (
-              <Tooltip title={`Calidad: ${iq || 'N/A'}%`}>
+              <Tooltip title={`Excelencia: ${iq || 'N/A'}%`}>
                 <Box sx={{ 
-                  position: 'absolute', top: -8, right: -8, 
+                  position: 'absolute', bottom: 0, right: 0, 
                   bgcolor: qualityConfig.color, color: 'white',
-                  borderRadius: '50%', width: 22, height: 22,
+                  borderRadius: '50%', width: 28, height: 28,
                   display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  border: `2px solid ${isLight ? 'white' : '#1e293b'}`,
-                  boxShadow: '0 2px 6px rgba(0,0,0,0.2)'
+                  border: '3px solid #0F172A',
+                  boxShadow: '0 4px 10px rgba(0,0,0,0.3)'
                 }}>
                   {qualityConfig.icon}
                 </Box>
@@ -107,70 +110,73 @@ export default function EmployeeCard({ employee, hotels, onEdit, onDelete }: Emp
             )}
           </Box>
 
-          <Box sx={{ flexGrow: 1, overflow: 'hidden' }}>
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-              <Typography variant="subtitle1" sx={{ fontWeight: 900, lineHeight: 1.1, noWrap: true }}>
-                {employee.name}
-              </Typography>
-              <Typography variant="caption" color="text.disabled" sx={{ fontWeight: 600 }}>
-                #{employee.employeeNumber.split('-')[1] || employee.employeeNumber}
-              </Typography>
-            </Box>
-            <Typography variant="caption" color="primary.main" sx={{ fontWeight: 800, textTransform: 'uppercase', display: 'flex', alignItems: 'center', gap: 0.5, mt: 0.5 }}>
-              <BadgeIcon sx={{ fontSize: 14 }} /> {employee.role}
-            </Typography>
-          </Box>
+          <Typography 
+            variant="h5" 
+            sx={{ 
+              fontWeight: 900, 
+              color: '#94A3B8', // Gris Platino Premium
+              textTransform: 'uppercase',
+              letterSpacing: '-0.5px',
+              lineHeight: 1.1,
+              mb: 0.5,
+              transition: 'all 0.3s ease'
+            }}
+          >
+            {employee.name}
+          </Typography>
+          
+          <Typography variant="caption" sx={{ fontWeight: 800, color: 'primary.main', textTransform: 'uppercase', letterSpacing: '2px' }}>
+            {employee.role}
+          </Typography>
         </Box>
 
-        <Stack spacing={1.5}>
-          {/* UBICACIÓN ACTUAL */}
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
-            <ApartmentIcon sx={{ fontSize: 18, color: 'text.secondary', opacity: 0.6 }} />
-            <Box>
-              <Typography variant="body2" sx={{ fontWeight: 700, fontSize: '0.85rem' }}>
-                {hotel ? hotel.name : 'Sin Asignación'}
-              </Typography>
-              <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: -0.2 }}>
-                {hotel ? hotel.city : 'Ubicación pendiente'}
-              </Typography>
-            </Box>
+        <Stack spacing={2}>
+          {/* ASIGNACIÓN ACTUAL */}
+          <Box sx={{ p: 1.5, borderRadius: 2, bgcolor: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.05)' }}>
+            <Stack direction="row" spacing={1.5} alignItems="center">
+              <ApartmentIcon sx={{ color: 'text.secondary', fontSize: 20 }} />
+              <Box>
+                <Typography variant="caption" sx={{ fontWeight: 800, color: 'text.secondary', display: 'block', lineHeight: 1 }}>ASIGNADO A:</Typography>
+                <Typography variant="body2" sx={{ fontWeight: 800, color: 'white' }}>
+                  {hotel ? hotel.name : 'Sin Asignación'}
+                </Typography>
+              </Box>
+            </Stack>
           </Box>
 
-          {/* CHIPS DE ESTADO COMPACTOS */}
-          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', pt: 0.5 }}>
+          {/* CHIPS Y WHATSAPP */}
+          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <Stack direction="row" spacing={1}>
               <Chip 
-                label={employee.employeeType === 'permanente' ? 'Fijo' : 'Refuerzo'} 
+                label={employee.employeeType === 'permanente' ? 'FIJO' : 'REFUERZO'} 
                 size="small" 
-                variant="soft"
-                sx={{ fontSize: '0.65rem', fontWeight: 800, height: 20, bgcolor: 'rgba(0,0,0,0.04)' }} 
+                sx={{ fontWeight: 900, fontSize: '0.6rem', borderRadius: 1, bgcolor: 'rgba(255,255,255,0.05)', color: 'text.secondary' }} 
               />
-              {iq && (
-                <Chip 
-                  label={`${iq}% Calidad`}
-                  size="small"
-                  sx={{ fontSize: '0.65rem', fontWeight: 800, height: 20, bgcolor: `${qualityConfig?.color}15`, color: qualityConfig?.color }}
-                />
-              )}
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, px: 1, py: 0.2, borderRadius: 1, bgcolor: employee.isActive ? 'rgba(76, 175, 80, 0.1)' : 'rgba(255,255,255,0.05)' }}>
+                <FiberManualRecordIcon sx={{ fontSize: 8, color: employee.isActive ? '#4CAF50' : '#666' }} />
+                <Typography variant="caption" sx={{ fontWeight: 900, fontSize: '0.6rem', color: employee.isActive ? '#4CAF50' : '#666' }}>{employee.isActive ? 'ACTIVO' : 'OFF'}</Typography>
+              </Box>
             </Stack>
             
             {employee.phone && (
-              <IconButton 
-                size="small" 
-                onClick={handleWhatsApp}
-                sx={{ color: '#25D366', bgcolor: 'rgba(37, 211, 102, 0.08)' }}
-              >
-                <WhatsAppIcon sx={{ fontSize: 16 }} />
-              </IconButton>
+              <Tooltip title="Contactar por WhatsApp">
+                <IconButton 
+                  size="small" 
+                  onClick={handleWhatsApp}
+                  sx={{ color: '#25D366', bgcolor: 'rgba(37, 211, 102, 0.1)', '&:hover': { bgcolor: 'rgba(37, 211, 102, 0.2)' } }}
+                >
+                  <WhatsAppIcon sx={{ fontSize: 18 }} />
+                </IconButton>
+              </Tooltip>
             )}
           </Box>
 
           {isBlacklisted && (
-            <Box sx={{ p: 1.2, borderRadius: 2, bgcolor: 'rgba(244, 67, 54, 0.08)', borderLeft: '3px solid #f44336' }}>
-              <Typography variant="caption" sx={{ color: 'error.main', fontWeight: 800, display: 'flex', alignItems: 'center', gap: 0.5 }}>
-                <GavelIcon sx={{ fontSize: 14 }} /> RESTRICCIÓN ACTIVA
+            <Box sx={{ p: 1.5, borderRadius: 2, bgcolor: 'rgba(244, 67, 54, 0.1)', border: '1px solid rgba(244, 67, 54, 0.3)' }}>
+              <Typography variant="caption" sx={{ color: '#f44336', fontWeight: 900, textTransform: 'uppercase', letterSpacing: '1px', display: 'flex', alignItems: 'center', gap: 1 }}>
+                <GavelIcon sx={{ fontSize: 16 }} /> RESTRICCIÓN ACTIVA
               </Typography>
-              <Typography variant="caption" color="error.main" sx={{ display: 'block', fontSize: '0.65rem', mt: 0.5, lineHeight: 1 }}>
+              <Typography variant="caption" sx={{ color: 'text.secondary', display: 'block', mt: 0.5, fontWeight: 600 }}>
                 {employee.blacklistReason || 'Motivo no especificado'}
               </Typography>
             </Box>
@@ -179,24 +185,23 @@ export default function EmployeeCard({ employee, hotels, onEdit, onDelete }: Emp
       </CardContent>
 
       <Box sx={{ flexGrow: 1 }} />
-      <Divider sx={{ opacity: 0.05 }} />
-
-      {/* PIE DE TARJETA DISCRETO */}
-      <Box sx={{ px: 2, py: 1, display: 'flex', justifyContent: 'space-between', alignItems: 'center', bgcolor: 'rgba(0,0,0,0.01)' }}>
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-          <FiberManualRecordIcon sx={{ fontSize: 8, color: employee.isActive && !isBlacklisted ? 'success.main' : 'text.disabled' }} />
-          <Typography variant="caption" sx={{ fontWeight: 700, color: 'text.secondary', fontSize: '0.6rem', textTransform: 'uppercase' }}>
-            {employee.isActive ? 'Activo' : 'Inactivo'}
-          </Typography>
-        </Box>
-        <Stack direction="row" spacing={0.5}>
-          <IconButton size="small" onClick={() => onEdit(employee)} sx={{ color: 'text.secondary', '&:hover': { color: 'primary.main' } }}>
-            <EditIcon sx={{ fontSize: 16 }} />
-          </IconButton>
-          <IconButton size="small" onClick={() => onDelete(employee.id)} sx={{ color: 'text.secondary', '&:hover': { color: 'error.main' } }}>
-            <DeleteIcon sx={{ fontSize: 16 }} />
-          </IconButton>
-        </Stack>
+      
+      {/* ACCIONES FLOTANTES INTEGRADAS */}
+      <Box sx={{ px: 2, pb: 2, display: 'flex', justifyContent: 'flex-end', gap: 1 }}>
+        <IconButton 
+          size="small" 
+          onClick={() => onEdit(employee)}
+          sx={{ color: 'rgba(255,255,255,0.2)', '&:hover': { color: 'primary.main', bgcolor: 'rgba(255, 87, 34, 0.1)' } }}
+        >
+          <EditIcon sx={{ fontSize: 18 }} />
+        </IconButton>
+        <IconButton 
+          size="small" 
+          onClick={() => onDelete(employee.id)}
+          sx={{ color: 'rgba(255,255,255,0.1)', '&:hover': { color: 'error.main', bgcolor: 'rgba(244, 67, 54, 0.1)' } }}
+        >
+          <DeleteIcon sx={{ fontSize: 18 }} />
+        </IconButton>
       </Box>
     </Card>
   );

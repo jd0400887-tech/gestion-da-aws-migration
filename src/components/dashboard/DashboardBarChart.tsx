@@ -1,101 +1,126 @@
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
-import { Paper, Typography, Box, useTheme } from '@mui/material';
+import { Paper, Typography, Box, useTheme, LinearProgress, Stack } from '@mui/material';
+import LocationOnIcon from '@mui/icons-material/LocationOn';
+import TrendingUpIcon from '@mui/icons-material/TrendingUp';
 
 interface DashboardBarChartProps {
-  data: { name: string; value: number }[];
+  data: { zone: string; count: number }[];
   title: string;
 }
 
-const CustomYAxisTick = (props: any) => {
-  const { x, y, payload } = props;
-  const { value } = payload;
-  const MAX_LENGTH = 25; // Max characters to show
-  const truncatedValue = value.length > MAX_LENGTH ? `${value.substring(0, MAX_LENGTH)}...` : value;
-
-  return (
-    <g transform={`translate(${x},${y})`}>
-      <text x={0} y={0} dy={4} textAnchor="end" fill="#666">
-        {truncatedValue}
-      </text>
-    </g>
-  );
-};
-
 export function DashboardBarChart({ data, title }: DashboardBarChartProps) {
   const theme = useTheme();
-  if (!data || data.length === 0) {
+  
+  // Ordenar datos de mayor a menor y calcular total
+  const sortedData = [...(data || [])].sort((a, b) => b.count - a.count);
+  const totalRequests = sortedData.reduce((acc, curr) => acc + curr.count, 0);
+  const maxCount = sortedData.length > 0 ? sortedData[0].count : 0;
+
+  if (sortedData.length === 0) {
     return (
       <Paper sx={{
-        p: 2, 
-        height: '300px', 
+        p: 3, 
+        height: '420px', 
         display: 'flex', 
         flexDirection: 'column',
-        backgroundColor: theme.palette.mode === 'light' ? '#FFFFFF' : 'rgba(0, 0, 0, 0.2)',
-        border: '1px solid',
-        borderColor: 'primary.main',
-        boxShadow: theme.palette.mode === 'light' ? '0 4px 12px rgba(0,0,0,0.05)' : `0 0 5px #FF5722, 0 0 10px #FF5722`
+        backgroundColor: theme.palette.mode === 'light' ? '#FFFFFF' : 'rgba(15, 23, 42, 0.6)',
+        borderRadius: 4,
+        border: '1px solid rgba(255, 87, 34, 0.2)',
+        justifyContent: 'center',
+        alignItems: 'center'
       }}>
-        <Typography variant="h6">{title}</Typography>
-        <Box sx={{ flexGrow: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-          <Typography color="text.secondary">No hay datos disponibles</Typography>
-        </Box>
+        <Typography variant="h6" sx={{ fontWeight: 800 }}>{title}</Typography>
+        <Typography color="text.secondary">Sin datos de zona disponibles</Typography>
       </Paper>
     );
   }
 
-  const barHeight = 35;
-  const chartHeight = data.length * barHeight + 80; // 80px for top/bottom margins and legend
-
   return (
     <Paper sx={{
-      p: 2,
-      backgroundColor: theme.palette.mode === 'light' ? '#FFFFFF' : 'rgba(0, 0, 0, 0.2)',
-      border: '1px solid',
-      borderColor: 'primary.main',
-      boxShadow: theme.palette.mode === 'light' ? '0 4px 12px rgba(0,0,0,0.05)' : `0 0 5px #FF5722, 0 0 10px #FF5722`,
-      height: '420px', // Set a fixed height for the paper
+      p: 3,
+      backgroundColor: theme.palette.mode === 'light' ? '#FFFFFF' : 'rgba(15, 23, 42, 0.6)',
+      borderRadius: 4,
+      border: '1px solid rgba(255, 87, 34, 0.2)',
+      height: '420px',
       display: 'flex',
       flexDirection: 'column',
+      boxShadow: '0 10px 30px rgba(0,0,0,0.1)',
+      overflow: 'hidden'
     }}>
-      <Typography variant="h6" sx={{ mb: 2 }}>
-        {title}
-      </Typography>
-      <Box sx={{ 
-        flexGrow: 1, 
-        overflowY: 'auto', 
-        overflowX: 'hidden',
-        height: '100%',
-        '&::-webkit-scrollbar': {
-          width: '8px',
-        },
-        '&::-webkit-scrollbar-track': {
-          backgroundColor: 'rgba(0,0,0,0.1)',
-        },
-        '&::-webkit-scrollbar-thumb': {
-          backgroundColor: '#FF5722',
-          borderRadius: '4px',
-          boxShadow: '0 0 6px #FF5722',
-        },
-      }}>
-        <ResponsiveContainer width="100%" height={chartHeight}>
-          <BarChart
-            layout="vertical"
-            data={data}
-            margin={{
-              top: 5,
-              right: 30,
-              left: 20,
-              bottom: 20,
-            }}
-          >
-            <CartesianGrid strokeDasharray="3 3" />
-            <XAxis type="number" />
-            <YAxis dataKey="name" type="category" width={200} interval={0} tick={<CustomYAxisTick />} />
-            <Tooltip wrapperStyle={{ zIndex: 1000 }} />
-            <Legend />
-            <Bar dataKey="value" fill="#8884d8" name="Cantidad" barSize={20} />
-          </BarChart>
-        </ResponsiveContainer>
+      <Box sx={{ mb: 3, display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+        <Box>
+          <Typography variant="h6" sx={{ fontWeight: 900, color: 'text.primary', lineHeight: 1 }}>
+            {title}
+          </Typography>
+          <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 600 }}>
+            RANKING DE CARGA POR REGIÓN
+          </Typography>
+        </Box>
+        <Box sx={{ textAlign: 'right' }}>
+          <Typography variant="h4" sx={{ fontWeight: 900, color: 'primary.main', lineHeight: 1 }}>
+            {totalRequests}
+          </Typography>
+          <Typography variant="caption" sx={{ fontWeight: 700, opacity: 0.6 }}>TOTAL</Typography>
+        </Box>
+      </Box>
+      
+      <Box sx={{ flexGrow: 1, overflowY: 'auto', pr: 1 }}>
+        <Stack spacing={3}>
+          {sortedData.map((item, index) => {
+            const percentageOfTotal = totalRequests > 0 ? Math.round((item.count / totalRequests) * 100) : 0;
+            const percentageOfMax = maxCount > 0 ? (item.count / maxCount) * 100 : 0;
+            
+            return (
+              <Box key={item.zone}>
+                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
+                  <Stack direction="row" spacing={1} alignItems="center">
+                    <Box sx={{ 
+                      width: 24, height: 24, borderRadius: 1, 
+                      display: 'flex', alignItems: 'center', justifyContent: 'center',
+                      bgcolor: index === 0 ? 'primary.main' : 'rgba(255,255,255,0.05)',
+                      color: index === 0 ? 'white' : 'text.secondary',
+                      fontSize: '0.75rem', fontWeight: 900
+                    }}>
+                      {index + 1}
+                    </Box>
+                    <Typography variant="body2" sx={{ fontWeight: 800, color: 'text.primary' }}>
+                      {item.zone.toUpperCase()}
+                    </Typography>
+                  </Stack>
+                  <Stack direction="row" spacing={1} alignItems="center">
+                    <Typography variant="body2" sx={{ fontWeight: 900 }}>
+                      {item.count}
+                    </Typography>
+                    <Typography variant="caption" sx={{ fontWeight: 700, color: 'text.secondary', opacity: 0.6 }}>
+                      ({percentageOfTotal}%)
+                    </Typography>
+                  </Stack>
+                </Box>
+                <LinearProgress 
+                  variant="determinate" 
+                  value={percentageOfMax} 
+                  sx={{ 
+                    height: 6, 
+                    borderRadius: 3, 
+                    bgcolor: 'rgba(255,255,255,0.05)',
+                    '& .MuiLinearProgress-bar': {
+                      borderRadius: 3,
+                      background: index === 0 
+                        ? 'linear-gradient(90deg, #FF5722 0%, #FF8A65 100%)' 
+                        : 'linear-gradient(90deg, rgba(255, 87, 34, 0.6) 0%, rgba(255, 87, 34, 0.3) 100%)'
+                    }
+                  }} 
+                />
+              </Box>
+            );
+          })}
+        </Stack>
+      </Box>
+
+      <Box sx={{ mt: 'auto', pt: 2, borderTop: '1px solid rgba(255,255,255,0.05)', display: 'flex', alignItems: 'center', gap: 1 }}>
+        <TrendingUpIcon sx={{ fontSize: 16, color: 'success.main' }} />
+        <Typography variant="caption" sx={{ color: 'text.secondary', fontWeight: 600 }}>
+          La zona <strong>{sortedData[0]?.zone}</strong> lidera la demanda operativa.
+        </Typography>
       </Box>
     </Paper>
   );

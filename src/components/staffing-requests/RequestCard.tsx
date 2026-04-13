@@ -67,99 +67,124 @@ export default function RequestCard({ request, onEdit, onArchive }: RequestCardP
       style={style}
       sx={{ 
         mb: 2, 
-        borderRadius: 3,
+        borderRadius: 4,
         position: 'relative',
         transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
         border: `1px solid ${isLight ? 'rgba(0,0,0,0.05)' : 'rgba(255,255,255,0.05)'}`,
-        borderLeft: `5px solid ${pConfig.color}`,
-        bgcolor: isLight ? '#FFFFFF' : 'rgba(255,255,255,0.02)',
+        borderLeft: `6px solid ${pConfig.color}`,
+        bgcolor: isLight ? '#FFFFFF' : 'rgba(15, 23, 42, 0.6)',
         touchAction: 'none',
         '&:hover': {
-          transform: transform ? style.transform : 'translateY(-4px)',
-          boxShadow: '0 12px 25px rgba(0,0,0,0.1)',
-          borderColor: pConfig.color
+          transform: transform ? style.transform : 'translateY(-5px)',
+          boxShadow: isLight ? '0 15px 35px rgba(0,0,0,0.1)' : '0 15px 35px rgba(0,0,0,0.4)',
+          borderColor: pConfig.color,
+          '& .request-title': { color: 'primary.main' }
         }
       }}
     >
-      <CardContent sx={{ p: 2, '&:last-child': { pb: 1.5 } }}>
-        {/* CABECERA */}
-        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1.5 }}>
+      <CardContent sx={{ p: 2.5, '&:last-child': { pb: 2 } }}>
+        {/* CABECERA: NÚMERO Y PRIORIDAD */}
+        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
           <Stack direction="row" spacing={1} alignItems="center">
             <Typography 
               variant="caption" 
               {...attributes} {...listeners} 
-              sx={{ fontWeight: 900, color: 'text.secondary', fontFamily: 'monospace', cursor: 'grab' }}
+              sx={{ fontWeight: 900, color: 'text.disabled', letterSpacing: '1px', cursor: 'grab' }}
             >
-              {request.request_number}
+              #{request.request_number.split('-')[1] || request.request_number}
             </Typography>
             
-            {/* INDICADOR SLA (Semáforo) */}
-            <Tooltip title={request.status === 'Vencida' ? 'Solicitud fuera de SLA (72h)' : `Tiempo transcurrido: ${request.hours_since_creation}h`}>
+            <Chip 
+              label={pConfig.label} 
+              size="small" 
+              sx={{ 
+                height: 18, fontSize: '0.55rem', fontWeight: 900, 
+                bgcolor: pConfig.bg, color: pConfig.color,
+                borderRadius: 1
+              }} 
+            />
+          </Stack>
+          
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+            {/* INDICADOR SLA PREMIUM */}
+            <Tooltip title={`SLA: ${request.hours_since_creation}h transcurridas`}>
               <Box sx={{ 
-                display: 'flex', 
-                alignItems: 'center', 
-                gap: 0.3, 
-                px: 0.8, 
-                py: 0.2, 
-                borderRadius: 1, 
-                bgcolor: 'rgba(0,0,0,0.03)',
+                display: 'flex', alignItems: 'center', gap: 0.5, px: 1, py: 0.2, borderRadius: 1,
+                bgcolor: sla.urgent ? 'rgba(211, 47, 47, 0.15)' : 'rgba(255,255,255,0.03)',
                 color: sla.color,
-                animation: sla.urgent ? 'pulse 1.5s infinite' : 'none',
-                '@keyframes pulse': { '0%': { opacity: 1 }, '50%': { opacity: 0.5 }, '100%': { opacity: 1 } }
+                border: sla.urgent ? '1px solid rgba(211, 47, 47, 0.3)' : '1px solid transparent',
+                animation: sla.urgent ? 'pulse-red 2s infinite' : 'none',
+                '@keyframes pulse-red': { '0%': { boxShadow: '0 0 0 0 rgba(211, 47, 47, 0.4)' }, '70%': { boxShadow: '0 0 0 10px rgba(211, 47, 47, 0)' }, '100%': { boxShadow: '0 0 0 0 rgba(211, 47, 47, 0)' } }
               }}>
-                {sla.icon}
+                <AccessTimeIcon sx={{ fontSize: 12 }} />
                 <Typography variant="caption" sx={{ fontWeight: 900, fontSize: '0.6rem' }}>{sla.text}</Typography>
               </Box>
             </Tooltip>
-          </Stack>
-          
-          <Stack direction="row" spacing={1} alignItems="center">
-            <Chip label={pConfig.label} size="small" sx={{ height: 18, fontSize: '0.55rem', fontWeight: 900, bgcolor: pConfig.bg, color: pConfig.color }} />
+            
             {onArchive && (
-              <Tooltip title="Mover al Histórico">
-                <IconButton 
-                  size="small" 
-                  onClick={(e) => { e.stopPropagation(); onArchive(request.id); }}
-                  sx={{ p: 0.2, color: 'text.disabled', '&:hover': { color: 'primary.main' } }}
-                >
-                  <ArchiveIcon sx={{ fontSize: 16 }} />
-                </IconButton>
-              </Tooltip>
+              <IconButton 
+                size="small" 
+                onClick={(e) => { e.stopPropagation(); onArchive(request.id); }}
+                sx={{ color: 'text.disabled', '&:hover': { color: 'primary.main' } }}
+              >
+                <ArchiveIcon sx={{ fontSize: 16 }} />
+              </IconButton>
             )}
-          </Stack>
+          </Box>
         </Box>
 
-        {/* CUERPO CLICKABLE */}
+        {/* CUERPO: CARGO Y HOTEL */}
         <Box onClick={() => onEdit(request)} sx={{ cursor: 'pointer' }}>
-          <Typography variant="body1" sx={{ fontWeight: 800, mb: 0.5, lineHeight: 1.2 }}>{request.role}</Typography>
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 2 }}>
-            <ApartmentIcon sx={{ fontSize: 14, color: 'primary.main', opacity: 0.7 }} />
-            <Typography variant="caption" sx={{ fontWeight: 700, color: 'text.secondary' }}>{request.hotelName}</Typography>
+          <Typography 
+            variant="h6" 
+            className="request-title"
+            sx={{ 
+              fontWeight: 900, 
+              color: '#94A3B8', // Gris Azulado Premium (Platino)
+              textTransform: 'uppercase',
+              letterSpacing: '-0.5px',
+              lineHeight: 1.1,
+              mb: 0.5,
+              transition: 'all 0.3s ease'
+            }}
+          >
+            {request.role}
+          </Typography>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.8, mb: 2.5 }}>
+            <ApartmentIcon sx={{ fontSize: 14, color: 'primary.main', opacity: 0.8 }} />
+            <Typography variant="caption" sx={{ fontWeight: 800, color: 'text.secondary', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+              {request.hotelName}
+            </Typography>
           </Box>
 
-          <Divider sx={{ mb: 1.5, opacity: 0.05 }} />
-
-          <Stack spacing={1}>
-            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                <PeopleIcon sx={{ fontSize: 16, color: 'action.active' }} />
-                <Typography variant="caption" sx={{ fontWeight: 800 }}>{request.candidate_count || 0} / {request.num_of_people}</Typography>
-              </Box>
-              {request.shift_time && (
-                <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, bgcolor: 'rgba(0,0,0,0.03)', px: 1, borderRadius: 1 }}>
-                  <AccessTimeIcon sx={{ fontSize: 12, color: 'primary.main' }} />
-                  <Typography variant="caption" sx={{ fontWeight: 900, fontSize: '0.65rem' }}>{request.shift_time}</Typography>
-                </Box>
-              )}
+          {/* KPI DE COBERTURA */}
+          <Box sx={{ mb: 1, display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end' }}>
+            <Box>
+              <Typography variant="caption" sx={{ fontWeight: 800, color: 'text.disabled', display: 'block', mb: 0.2, fontSize: '0.6rem' }}>AVANCE COBERTURA</Typography>
+              <Typography variant="body2" sx={{ fontWeight: 900, color: 'white' }}>
+                {request.candidate_count || 0} <Typography component="span" variant="caption" sx={{ color: 'text.secondary', fontWeight: 700 }}>/ {request.num_of_people} VACANTES</Typography>
+              </Typography>
             </Box>
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-              <CalendarTodayIcon sx={{ fontSize: 14, color: 'action.active' }} />
-              <Typography variant="caption" sx={{ fontWeight: 600 }}>{new Date(request.start_date).toLocaleDateString('es-ES', { day: '2-digit', month: 'short' })}</Typography>
-            </Box>
-          </Stack>
+            <Stack direction="row" spacing={1} alignItems="center">
+              <CalendarTodayIcon sx={{ fontSize: 14, color: 'text.disabled' }} />
+              <Typography variant="caption" sx={{ fontWeight: 800, color: 'text.secondary' }}>
+                {new Date(request.start_date).toLocaleDateString('es-ES', { day: '2-digit', month: 'short' }).toUpperCase()}
+              </Typography>
+            </Stack>
+          </Box>
 
-          <Box sx={{ mt: 2, height: 4, width: '100%', bgcolor: 'rgba(0,0,0,0.05)', borderRadius: 2, overflow: 'hidden' }}>
-            <Box sx={{ height: '100%', width: `${Math.min(((request.candidate_count || 0) / request.num_of_people) * 100, 100)}%`, bgcolor: 'success.main', transition: 'width 0.5s ease' }} />
+          <Box sx={{ height: 6, width: '100%', bgcolor: 'rgba(255,255,255,0.05)', borderRadius: 3, overflow: 'hidden' }}>
+            <Box 
+              sx={{ 
+                height: '100%', 
+                width: `${Math.min(((request.candidate_count || 0) / request.num_of_people) * 100, 100)}%`, 
+                background: (request.candidate_count || 0) >= request.num_of_people 
+                  ? 'linear-gradient(90deg, #4CAF50 0%, #81C784 100%)'
+                  : 'linear-gradient(90deg, #FF5722 0%, #FF8A65 100%)',
+                boxShadow: (request.candidate_count || 0) > 0 ? '0 0 10px rgba(255, 87, 34, 0.3)' : 'none',
+                transition: 'width 1s cubic-bezier(0.4, 0, 0.2, 1)' 
+              }} 
+            />
           </Box>
         </Box>
       </CardContent>

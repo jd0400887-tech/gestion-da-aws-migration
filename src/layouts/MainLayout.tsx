@@ -25,6 +25,7 @@ import { useAuth } from '../hooks/useAuth';
 import { useDashboardStats } from '../hooks/useDashboardStats';
 
 const drawerWidth = 260;
+const miniDrawerWidth = 70;
 
 export default function MainLayout() {
   const navigate = useNavigate();
@@ -32,13 +33,16 @@ export default function MainLayout() {
   const theme = useTheme();
   const isLight = theme.palette.mode === 'light';
   
-  const { isMobile } = { isMobile: window.innerWidth < 900 }; // Simplificado
-  const [open, setOpen] = useState(!isMobile);
+  const [open, setOpen] = useState(true);
+  const [isHovered, setIsHovered] = useState(false);
   const [anchorEl, setAnchorEl] = useState<HTMLButtonElement | null>(null);
   const { signOut, profile } = useAuth();
   const { stats: dashboardStats } = useDashboardStats();
 
   const handleDrawerToggle = () => setOpen(!open);
+
+  // La barra está expandida si 'open' es true O si el mouse está encima
+  const isExpanded = open || isHovered;
 
   const menuItems = [
     { text: 'Dashboard', icon: <DashboardIcon />, path: '/', visible: true },
@@ -59,19 +63,35 @@ export default function MainLayout() {
   };
 
   const drawerContent = (
-    <Box sx={{ height: '100%', display: 'flex', flexDirection: 'column', bgcolor: '#0F172A' }}>
-      <Box sx={{ minHeight: 80, display: 'flex', alignItems: 'center', px: 2, position: 'relative' }}>
-        <IconButton 
-          onClick={handleDrawerToggle} 
-          sx={{ 
-            color: 'rgba(255,255,255,0.3)', 
-            position: 'absolute', 
-            left: 8,
-            '&:hover': { color: 'primary.main', bgcolor: 'rgba(255, 87, 34, 0.1)' } 
-          }}
-        >
-          <MenuIcon />
-        </IconButton>
+    <Box 
+      onMouseEnter={() => setIsHovered(true)}
+      onMouseLeave={() => setIsHovered(false)}
+      sx={{ 
+        height: '100%', 
+        display: 'flex', 
+        flexDirection: 'column', 
+        bgcolor: '#0F172A',
+        overflowX: 'hidden',
+        transition: theme.transitions.create('width', {
+          easing: theme.transitions.easing.sharp,
+          duration: theme.transitions.duration.enteringScreen,
+        }),
+      }}
+    >
+      <Box sx={{ minHeight: 80, display: 'flex', alignItems: 'center', px: isExpanded ? 2 : 1, position: 'relative', justifyContent: isExpanded ? 'flex-start' : 'center' }}>
+        {isExpanded && (
+          <IconButton 
+            onClick={handleDrawerToggle} 
+            sx={{ 
+              color: 'rgba(255,255,255,0.3)', 
+              position: 'absolute', 
+              left: 8,
+              '&:hover': { color: 'primary.main', bgcolor: 'rgba(255, 87, 34, 0.1)' } 
+            }}
+          >
+            <MenuIcon />
+          </IconButton>
+        )}
         <Typography 
           variant="h4" 
           sx={{ 
@@ -85,14 +105,32 @@ export default function MainLayout() {
             textTransform: 'none',
             lineHeight: 1,
             textAlign: 'center',
-            ml: 2 // Espacio para equilibrar el botón de la izquierda
+            ml: isExpanded ? 2 : 0,
+            display: isExpanded ? 'block' : 'none'
           }}
         >
           Oranje
         </Typography>
+        {!isExpanded && (
+          <Avatar 
+            src="/pwa-192x192.svg" 
+            sx={{ width: 32, height: 32, cursor: 'pointer' }} 
+            onClick={handleDrawerToggle}
+          />
+        )}
       </Box>
+
       <Divider sx={{ bgcolor: 'rgba(255,255,255,0.05)', mb: 2 }} />
-      <Box sx={{ px: 3, mb: 4, display: 'flex', alignItems: 'center', gap: 2 }}>
+
+      {/* PERFIL (SOLO SI ESTÁ EXPANDIDO) */}
+      <Box sx={{ 
+        px: isExpanded ? 3 : 1, 
+        mb: 4, 
+        display: 'flex', 
+        alignItems: 'center', 
+        gap: 2,
+        justifyContent: isExpanded ? 'flex-start' : 'center'
+      }}>
         <Badge 
           overlap="circular" 
           anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
@@ -100,118 +138,115 @@ export default function MainLayout() {
           sx={{ 
             '& .MuiBadge-badge': { 
               bgcolor: '#4caf50', 
-              color: '#4caf50', 
               boxShadow: '0 0 0 2px #0F172A',
-              '&::after': {
-                position: 'absolute', top: 0, left: 0, width: '100%', height: '100%',
-                borderRadius: '50%', animation: 'ripple 1.2s infinite ease-in-out',
-                border: '1px solid currentColor', content: '""',
-              },
-            },
-            '@keyframes ripple': {
-              '0%': { transform: 'scale(.8)', opacity: 1 },
-              '100%': { transform: 'scale(2.4)', opacity: 0 },
-            },
+            }
           }}
         >
           <Avatar 
             sx={{ 
               background: 'linear-gradient(135deg, #FF5722 0%, #FF8A65 100%)', 
               fontWeight: 800,
-              width: 42,
-              height: 42,
+              width: isExpanded ? 42 : 32,
+              height: isExpanded ? 42 : 32,
+              fontSize: isExpanded ? '1.2rem' : '0.8rem',
               boxShadow: '0 4px 12px rgba(255, 87, 34, 0.4)'
             }}
           >
             {profile?.name?.[0] || 'U'}
           </Avatar>
         </Badge>
-        <Box sx={{ overflow: 'hidden' }}>
-          <Typography 
-            variant="caption" 
-            sx={{ 
-              color: 'primary.main', 
-              fontWeight: 900, 
-              display: 'block', 
-              textTransform: 'uppercase',
-              letterSpacing: '1.5px',
-              fontSize: '0.6rem',
-              opacity: 0.8
-            }}
-          >
-            {profile?.role}
-          </Typography>
-          <Typography 
-            variant="body2" 
-            noWrap 
-            sx={{ 
-              color: 'white', 
-              fontWeight: 700,
-              fontSize: '0.9rem',
-              letterSpacing: '-0.2px'
-            }}
-          >
-            {profile?.name || profile?.email?.split('@')[0]}
-          </Typography>
-        </Box>
+        {isExpanded && (
+          <Box sx={{ overflow: 'hidden' }}>
+            <Typography variant="caption" sx={{ color: 'primary.main', fontWeight: 900, display: 'block', textTransform: 'uppercase', letterSpacing: '1.5px', fontSize: '0.6rem', opacity: 0.8 }}>
+              {profile?.role}
+            </Typography>
+            <Typography variant="body2" noWrap sx={{ color: 'white', fontWeight: 700, fontSize: '0.9rem', letterSpacing: '-0.2px' }}>
+              {profile?.name || profile?.email?.split('@')[0]}
+            </Typography>
+          </Box>
+        )}
       </Box>
-      <Box sx={{ flexGrow: 1, px: 1, overflowY: 'auto' }}>
+
+      <Box sx={{ flexGrow: 1, px: 1, overflowY: 'auto', overflowX: 'hidden' }}>
         <List>
           {menuItems.map((item) => {
             const isActive = location.pathname === item.path;
             return (
               <ListItem key={item.text} disablePadding sx={{ mb: 0.5 }}>
-                <ListItemButton
-                  onClick={() => navigate(item.path)}
-                  sx={{
-                    borderRadius: 3, py: 1.2, px: 2,
-                    backgroundColor: isActive ? 'rgba(255, 87, 34, 0.15)' : 'transparent',
-                    borderLeft: isActive ? '4px solid #FF5722' : '4px solid transparent',
-                    color: isActive ? '#FF5722' : 'rgba(255,255,255,0.6)',
-                    '&:hover': { backgroundColor: 'rgba(255, 255, 255, 0.05)', color: 'white' }
-                  }}
-                >
-                  <ListItemIcon sx={{ color: isActive ? '#FF5722' : 'rgba(255,255,255,0.4)', minWidth: 40 }}>{item.icon}</ListItemIcon>
-                  <ListItemText primary={item.text} primaryTypographyProps={{ fontSize: '0.85rem', fontWeight: isActive ? 800 : 500 }} />
-                </ListItemButton>
+                <Tooltip title={!isExpanded ? item.text : ""} placement="right">
+                  <ListItemButton
+                    onClick={() => navigate(item.path)}
+                    sx={{
+                      borderRadius: 3, py: 1.2, px: isExpanded ? 2 : 0,
+                      justifyContent: isExpanded ? 'initial' : 'center',
+                      backgroundColor: isActive ? 'rgba(255, 87, 34, 0.15)' : 'transparent',
+                      borderLeft: isExpanded && isActive ? '4px solid #FF5722' : '4px solid transparent',
+                      color: isActive ? '#FF5722' : 'rgba(255,255,255,0.6)',
+                      '&:hover': { backgroundColor: 'rgba(255, 255, 255, 0.05)', color: 'white' }
+                    }}
+                  >
+                    <ListItemIcon sx={{ 
+                      color: isActive ? '#FF5722' : 'rgba(255,255,255,0.4)', 
+                      minWidth: isExpanded ? 40 : 0,
+                      mr: isExpanded ? 0 : 0,
+                      justifyContent: 'center'
+                    }}>
+                      {item.icon}
+                    </ListItemIcon>
+                    {isExpanded && <ListItemText primary={item.text} primaryTypographyProps={{ fontSize: '0.85rem', fontWeight: isActive ? 800 : 500, ml: 1 }} />}
+                  </ListItemButton>
+                </Tooltip>
               </ListItem>
             );
           })}
         </List>
       </Box>
-      <Box sx={{ p: 2, mt: 'auto' }}>
+
+      <Box sx={{ p: isExpanded ? 2 : 1, mt: 'auto' }}>
         <Divider sx={{ bgcolor: 'rgba(255,255,255,0.05)', mb: 2 }} />
-        <ListItemButton 
-          onClick={handleLogout} 
-          sx={{ 
-            borderRadius: 3, 
-            color: 'rgba(255,255,255,0.5)',
-            transition: 'all 0.2s ease',
-            '&:hover': { 
-              bgcolor: 'rgba(244, 67, 54, 0.1)', 
-              color: '#f44336',
-              transform: 'translateX(4px)'
-            } 
-          }}
-        >
-          <ListItemIcon sx={{ color: 'inherit', minWidth: 40 }}>
-            <LogoutIcon fontSize="small" />
-          </ListItemIcon>
-          <ListItemText 
-            primary="Cerrar Sesión" 
-            primaryTypographyProps={{ 
-              fontSize: '0.85rem', 
-              fontWeight: 600 
-            }} 
-          />
-        </ListItemButton>
+        <Tooltip title={!isExpanded ? "Cerrar Sesión" : ""} placement="right">
+          <ListItemButton 
+            onClick={handleLogout} 
+            sx={{ 
+              borderRadius: 3, 
+              color: 'rgba(255,255,255,0.5)',
+              justifyContent: isExpanded ? 'initial' : 'center',
+              px: isExpanded ? 2 : 0,
+              transition: 'all 0.2s ease',
+              '&:hover': { 
+                bgcolor: 'rgba(244, 67, 54, 0.1)', 
+                color: '#f44336',
+                transform: isExpanded ? 'translateX(4px)' : 'none'
+              } 
+            }}
+          >
+            <ListItemIcon sx={{ color: 'inherit', minWidth: isExpanded ? 40 : 0, justifyContent: 'center' }}>
+              <LogoutIcon fontSize="small" />
+            </ListItemIcon>
+            {isExpanded && (
+              <ListItemText 
+                primary="Cerrar Sesión" 
+                primaryTypographyProps={{ fontSize: '0.85rem', fontWeight: 600, ml: 1 }} 
+              />
+            )}
+          </ListItemButton>
+        </Tooltip>
       </Box>
     </Box>
   );
 
   return (
     <Box sx={{ display: 'flex', minHeight: '100vh', bgcolor: theme.palette.background.default }}>
-      <AppBar position="fixed" sx={{ zIndex: (theme) => theme.zIndex.drawer - 1, backgroundColor: isLight ? 'rgba(255, 255, 255, 0.8)' : 'rgba(30, 30, 30, 0.8)', backdropFilter: 'blur(12px)', color: isLight ? '#0F172A' : '#FFFFFF', left: 0, width: '100%' }}>
+      <AppBar position="fixed" sx={{ 
+        zIndex: (theme) => theme.zIndex.drawer + 1, 
+        backgroundColor: isLight ? 'rgba(255, 255, 255, 0.8)' : 'rgba(15, 23, 42, 0.8)', 
+        backdropFilter: 'blur(12px)', 
+        color: isLight ? '#0F172A' : '#FFFFFF',
+        boxShadow: 'none',
+        borderBottom: '1px solid rgba(255,255,255,0.05)',
+        width: '100%',
+        left: 0
+      }}>
         <Toolbar sx={{ justifyContent: 'space-between', minHeight: 70, position: 'relative' }}>
           <Box sx={{ display: 'flex', alignItems: 'center' }}>
             <IconButton color="inherit" edge="start" onClick={handleDrawerToggle} sx={{ mr: 1, '&:hover': { color: 'primary.main', bgcolor: 'rgba(255, 87, 34, 0.1)' } }}>
@@ -239,8 +274,42 @@ export default function MainLayout() {
           </IconButton>
         </Toolbar>
       </AppBar>
-      <Drawer variant={window.innerWidth < 900 ? "temporary" : "persistent"} open={open} onClose={handleDrawerToggle} sx={{ width: open ? drawerWidth : 0, flexShrink: 0, '& .MuiDrawer-paper': { width: drawerWidth, boxSizing: 'border-box', bgcolor: '#0F172A', borderRight: 'none', transition: 'all 0.3s ease' } }}>{drawerContent}</Drawer>
-      <Box component="main" sx={{ flexGrow: 1, p: { xs: 2, sm: 3 }, mt: 8, width: '100%', transition: 'margin 0.3s ease' }}><Outlet /></Box>
+
+      <Drawer 
+        variant="permanent" 
+        sx={{ 
+          width: isExpanded ? drawerWidth : miniDrawerWidth,
+          flexShrink: 0,
+          whiteSpace: 'nowrap',
+          boxSizing: 'border-box',
+          '& .MuiDrawer-paper': { 
+            width: isExpanded ? drawerWidth : miniDrawerWidth,
+            transition: theme.transitions.create('width', {
+              easing: theme.transitions.easing.sharp,
+              duration: theme.transitions.duration.enteringScreen,
+            }),
+            overflowX: 'hidden',
+            bgcolor: '#0F172A',
+            borderRight: '1px solid rgba(255,255,255,0.05)',
+            boxShadow: isExpanded ? '10px 0 30px rgba(0,0,0,0.2)' : 'none'
+          },
+        }}
+      >
+        {drawerContent}
+      </Drawer>
+
+      <Box component="main" sx={{ 
+        flexGrow: 1, 
+        p: { xs: 2, sm: 3 }, 
+        mt: 8, 
+        width: `calc(100% - ${isExpanded ? drawerWidth : miniDrawerWidth}px)`,
+        transition: theme.transitions.create(['width', 'margin'], {
+          easing: theme.transitions.easing.sharp,
+          duration: theme.transitions.duration.enteringScreen,
+        }),
+      }}>
+        <Outlet />
+      </Box>
     </Box>
   );
 }
