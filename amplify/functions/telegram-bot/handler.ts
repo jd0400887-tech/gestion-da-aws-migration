@@ -31,7 +31,7 @@ async function callGraphQL(query: string, variables: any = {}) {
 const GET_HOTEL = `query GetHotel($id: ID!) { getHotel(id: $id) { id name } }`;
 const UPDATE_HOTEL_CHAT = `mutation UpdateHotelChat($id: ID!, $chatId: String!) { updateHotel(input: { id: $id, telegram_chat_id: $chatId }) { id name } }`;
 const LIST_HOTELS_BY_CHAT = `query ListHotels($chatId: String!) { listHotels(filter: { telegram_chat_id: { eq: $chatId } }) { items { id name } } }`;
-const LIST_POSITIONS = `query ListPositions { listPositions(filter: { isActive: { eq: true } }) { items { id name } } }`;
+const LIST_POSITIONS = `query ListPositions { listPositions(filter: { is_active: { eq: true } }) { items { id name } } }`;
 const GET_POSITION = `query GetPosition($id: ID!) { getPosition(id: $id) { id name } }`;
 const CREATE_REQUEST = `mutation CreateRequest($input: CreateStaffingRequestInput!) { createStaffingRequest(input: $input) { id request_number } }`;
 

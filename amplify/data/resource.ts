@@ -6,7 +6,7 @@ const schema = a.schema({
     id: a.id(),
     email: a.string().required(),
     name: a.string().required(),
-    role: a.string().required(), // 'ADMIN', 'RECRUITER', 'INSPECTOR', 'BUSINESS_DEVELOPER', 'COORDINATOR'
+    role: a.string().required(), 
     assigned_zone: a.string(),
     phone: a.string(),
     is_active: a.boolean().default(true),
@@ -68,8 +68,8 @@ const schema = a.schema({
     role: a.string().required(),
     phone: a.string(),
     email: a.string(),
-    employee_type: a.string().required(), // 'permanente', 'temporal'
-    payroll_type: a.string().required(), // 'timesheet', 'Workrecord'
+    employee_type: a.string().required(), 
+    payroll_type: a.string().required(), 
     is_active: a.boolean().default(true), 
     is_blacklisted: a.boolean().default(false), 
     blacklist_reason: a.string(), 
