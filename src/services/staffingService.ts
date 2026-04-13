@@ -33,21 +33,29 @@ export const staffingService = {
       
       return requests
         .filter(r => r && r.id)
-        .map(r => ({
-          id: String(r.id),
-          request_number: r.request_number || 'SR-N/A',
-          created_at: (r as any).createdAt || new Date().toISOString(),
-          hotel_id: r.hotel_id || '',
-          request_type: (r.request_type as any) || 'temporal',
-          num_of_people: Number(r.num_of_people) || 1,
-          role: r.role || 'Sin cargo',
-          priority: (r.priority as any) || 'medium',
-          shift_time: r.shift_time || '',
-          start_date: r.start_date || new Date().toISOString().split('T')[0],
-          status: (r.status as any) || 'Pendiente',
-          notes: r.notes || '',
-          candidate_count: 0
-        }));
+        .map(r => {
+          // Limpiar fechas de RDS (pueden venir como ISO completo)
+          const cleanDate = (dateStr: string | null | undefined) => {
+            if (!dateStr) return new Date().toISOString().split('T')[0];
+            return dateStr.split('T')[0];
+          };
+
+          return {
+            id: String(r.id),
+            request_number: r.request_number || 'SR-N/A',
+            created_at: (r as any).createdAt || new Date().toISOString(),
+            hotel_id: r.hotel_id || '',
+            request_type: (r.request_type as any) || 'temporal',
+            num_of_people: Number(r.num_of_people) || 1,
+            role: r.role || 'Sin cargo',
+            priority: (r.priority as any) || 'medium',
+            shift_time: r.shift_time || '',
+            start_date: cleanDate(r.start_date),
+            status: (r.status as any) || 'Pendiente',
+            notes: r.notes || '',
+            candidate_count: 0
+          };
+        });
     } catch (error: any) {
       if (error.message?.includes('No current user')) return [];
       console.error('❌ Error al obtener solicitudes de RDS:', error);
@@ -63,6 +71,9 @@ export const staffingService = {
       const request_number = `SR${currentYear}-${randomPart}`;
       const now = new Date().toISOString().split('T')[0];
 
+      // Asegurar formato YYYY-MM-DD para AWS
+      const startDate = request.start_date ? request.start_date.split('T')[0] : now;
+
       const { data: newReq, errors } = await client.models.StaffingRequest.create({
         request_number,
         hotel_id: request.hotel_id,
@@ -71,7 +82,7 @@ export const staffingService = {
         role: request.role || 'Sin cargo',
         priority: request.priority || 'medium',
         shift_time: request.shift_time || '07:00',
-        start_date: request.start_date || now,
+        start_date: startDate,
         request_date: now,
         status: 'Pendiente',
         notes: request.notes || '',
@@ -104,17 +115,34 @@ export const staffingService = {
         input.role = updates.role;
         changeLog.push(`Cargo actualizado a: ${updates.role}`);
       }
-      if (updates.start_date) input.start_date = updates.start_date;
+      if (updates.start_date) {
+        // Limpiar fecha antes de enviar a AWS
+        input.start_date = updates.start_date.split('T')[0];
+      }
       if (updates.status) {
         input.status = updates.status;
         changeLog.push(`Estado cambiado a: ${updates.status}`);
+        
+        // Si el estado es Archivada, marcamos la bandera is_archived
+        if (updates.status === 'Archivada') {
+          input.is_archived = true;
+        }
       }
+      
+      // Manejo explícito de is_archived si viene en las actualizaciones
+      if ((updates as any).is_archived !== undefined) {
+        input.is_archived = (updates as any).is_archived;
+      }
+
       if (updates.notes !== undefined) input.notes = updates.notes || '';
       if (updates.priority) input.priority = updates.priority;
       if (updates.shift_time !== undefined) input.shift_time = updates.shift_time || '';
 
       const { errors } = await client.models.StaffingRequest.update(input);
-      if (errors) throw new Error("AWS rechazó la actualización.");
+      if (errors) {
+        console.error('⚠️ AWS Errors:', errors);
+        throw new Error("AWS rechazó la actualización.");
+      }
 
       if (changeLog.length > 0) {
         await this.addHistory(id, changeLog.join(" | "), userName);
