@@ -50,8 +50,8 @@ export default function HotelsPage() {
   const filteredHotels = useMemo(() => {
     return hotels.filter(hotel => {
       if (isInspector) {
-        const allowedZone = profile?.assigned_zone || 'Centro';
-        if (hotel.zone !== allowedZone) return false;
+        const allowedZone = profile?.assigned_zone;
+        if (!allowedZone || hotel.zone !== allowedZone) return false;
       }
       
       const matchesSearch = hotel.name.toLowerCase().includes(searchQuery.toLowerCase()) || 

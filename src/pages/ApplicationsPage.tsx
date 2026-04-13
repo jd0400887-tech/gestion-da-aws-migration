@@ -196,8 +196,10 @@ export default function ApplicationsPage() {
 
   // SEGURIDAD: Hoteles permitidos para este usuario
   const allowedHotels = useMemo(() => {
-    if (isInspector && profile?.assigned_zone) {
-      return hotels.filter(h => h.zone === profile.assigned_zone);
+    if (isInspector) {
+      const userZone = profile?.assigned_zone;
+      if (!userZone) return [];
+      return hotels.filter(h => h.zone === userZone);
     }
     return hotels;
   }, [hotels, isInspector, profile]);
@@ -286,8 +288,11 @@ export default function ApplicationsPage() {
     return applications
       .filter(app => {
         // SEGURIDAD: Solo ver aplicaciones de su zona
-        const hotel = hotels.find(h => h.id === app.hotel_id);
-        if (isInspector && hotel?.zone !== profile?.assigned_zone) return false;
+        if (isInspector) {
+          const hotel = hotels.find(h => h.id === app.hotel_id);
+          const userZone = profile?.assigned_zone;
+          if (!userZone || hotel?.zone !== userZone) return false;
+        }
 
         if (hotelFilter !== 'all' && app.hotel_id !== hotelFilter) return false;
         

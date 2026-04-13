@@ -36,20 +36,26 @@ export default function AttendanceReportPage() {
 
   // Filtrar registros por zona si el usuario es INSPECTOR
   const zoneFilteredRecords = useMemo(() => {
-    if (isInspector && profile.assigned_zone) {
+    if (isInspector) {
+      const userZone = profile?.assigned_zone;
+      if (!userZone) return [];
+      
       return filteredRecords.filter(record => {
         const hotel = hotels.find(h => h.id === record.hotelId);
-        return hotel?.zone === profile.assigned_zone;
+        return hotel?.zone === userZone;
       });
     }
     return filteredRecords;
   }, [filteredRecords, hotels, profile, isInspector]);
 
   const zoneFilteredVisitsByHotel = useMemo(() => {
-    if (isInspector && profile.assigned_zone) {
+    if (isInspector) {
+      const userZone = profile?.assigned_zone;
+      if (!userZone) return [];
+
       return visitsByHotel.filter(v => {
         const hotel = hotels.find(h => h.id === v.hotelId);
-        return hotel?.zone === profile.assigned_zone;
+        return hotel?.zone === userZone;
       });
     }
     return visitsByHotel;

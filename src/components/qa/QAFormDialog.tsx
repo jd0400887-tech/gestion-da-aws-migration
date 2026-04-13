@@ -58,7 +58,9 @@ export default function QAFormDialog({ open, onClose, template, onSubmit }: QAFo
   // Filtrar hoteles por zona del inspector
   const filteredHotels = useMemo(() => {
     if (profile?.role === 'INSPECTOR') {
-      return hotels.filter(h => h.zone === profile.assigned_zone);
+      const userZone = profile?.assigned_zone;
+      if (!userZone) return [];
+      return hotels.filter(h => h.zone === userZone);
     }
     return hotels;
   }, [hotels, profile]);

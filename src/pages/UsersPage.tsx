@@ -37,7 +37,7 @@ export default function UsersPage() {
   const [userFormData, setUserFormData] = useState({ 
     email: '', 
     name: '', 
-    role: 'RECRUITER',
+    role: 'RECRUITER' as const,
     assigned_zone: '',
     can_view_hotels: true,
     can_view_employees: true,
@@ -375,7 +375,6 @@ export default function UsersPage() {
                     <MenuItem value="ADMIN">ADMIN (Acceso Total)</MenuItem>
                     <MenuItem value="RECRUITER">RECRUITER (Reclutamiento)</MenuItem>
                     <MenuItem value="INSPECTOR">INSPECTOR (Campo/GPS)</MenuItem>
-                    <MenuItem value="BUSINESS_DEVELOPER">BUSINESS DEVELOPER</MenuItem>
                     <MenuItem value="COORDINATOR">COORDINADOR</MenuItem>
                   </Select>
                 </FormControl>

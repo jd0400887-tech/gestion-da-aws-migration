@@ -56,8 +56,6 @@ function DashboardPage() {
   useEffect(() => {
     if (profile?.assigned_zone) {
       setSelectedZone(profile.assigned_zone as any);
-    } else if (profile?.role === 'INSPECTOR') {
-      setSelectedZone('Centro'); 
     }
   }, [profile]);
 

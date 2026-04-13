@@ -37,8 +37,9 @@ export interface Profile {
   id: string;
   email: string;
   name: string;
-  role: 'ADMIN' | 'RECRUITER' | 'INSPECTOR';
+  role: 'ADMIN' | 'RECRUITER' | 'INSPECTOR' | 'COORDINATOR';
   assigned_zone?: string;
+  // Permisos de Visualización (Módulos)
   can_view_hotels: boolean;
   can_view_employees: boolean;
   can_view_requests: boolean;
@@ -47,6 +48,14 @@ export interface Profile {
   can_view_qa: boolean;
   can_view_reports: boolean;
   can_view_adoption: boolean;
+  // Permisos de Edición/Acción (Funcionalidades)
+  can_edit_hotels?: boolean;
+  can_edit_employees?: boolean;
+  can_edit_requests?: boolean;
+  can_approve_applications?: boolean;
+  can_manage_users?: boolean;
+  can_export_data?: boolean;
+  can_view_archived_requests?: boolean;
 }
 
 export interface StaffingRequest {

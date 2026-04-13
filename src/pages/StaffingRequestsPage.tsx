@@ -50,7 +50,7 @@ export default function StaffingRequestsPage() {
   const isInspector = profile?.role === 'INSPECTOR';
   const isRecruiter = profile?.role === 'RECRUITER';
 
-  const initialZone = isInspector ? (profile?.assigned_zone as any || 'Centro') : 'Todas';
+  const initialZone = isInspector ? (profile?.assigned_zone as any || '') : 'Todas';
   const [zoneFilter, setZoneFilter] = useState<'Todas' | 'Centro' | 'Norte' | 'Noroeste'>(initialZone);
   const [hotelFilter, setHotelFilter] = useState<string>('all');
   const [requestTypeFilter, setRequestTypeFilter] = useState<'all' | 'temporal' | 'permanente'>('all');
@@ -134,8 +134,8 @@ export default function StaffingRequestsPage() {
         // RESTRICCIÓN ESTRICTA PARA INSPECTORES
         if (isInspector) {
           const hotel = hotels.find(h => h.id === req.hotel_id);
-          const userZone = profile?.assigned_zone || 'Centro';
-          return hotel?.zone === userZone;
+          const userZone = profile?.assigned_zone;
+          return userZone && hotel?.zone === userZone;
         }
         
         // FILTRO VOLUNTARIO PARA OTROS ROLES

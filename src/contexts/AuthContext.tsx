@@ -64,6 +64,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           email: p.email,
           name: p.name || '',
           role: (p.role as any) || 'RECRUITER',
+          assigned_zone: p.assigned_zone || undefined,
+          // Permisos de Visualización (Módulos)
           can_view_hotels: p.can_view_hotels ?? true,
           can_view_employees: p.can_view_employees ?? true,
           can_view_requests: p.can_view_requests ?? true,
@@ -71,7 +73,15 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           can_view_payroll: p.can_view_payroll ?? false,
           can_view_qa: p.can_view_qa ?? false,
           can_view_reports: p.can_view_reports ?? false,
-          can_view_adoption: p.can_view_adoption ?? false
+          can_view_adoption: p.can_view_adoption ?? false,
+          // Permisos de Edición/Acción (Funcionalidades)
+          can_edit_hotels: p.can_edit_hotels ?? false,
+          can_edit_employees: p.can_edit_employees ?? false,
+          can_edit_requests: p.can_edit_requests ?? false,
+          can_approve_applications: p.can_approve_applications ?? false,
+          can_manage_users: p.can_manage_users ?? false,
+          can_export_data: p.can_export_data ?? false,
+          can_view_archived_requests: p.can_view_archived_requests ?? false
         });
       } else {
         setProfile({
@@ -86,7 +96,14 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           can_view_payroll: false,
           can_view_qa: false,
           can_view_reports: false,
-          can_view_adoption: false
+          can_view_adoption: false,
+          can_edit_hotels: false,
+          can_edit_employees: false,
+          can_edit_requests: false,
+          can_approve_applications: false,
+          can_manage_users: false,
+          can_export_data: false,
+          can_view_archived_requests: false
         });
       }
     } catch (error) {
