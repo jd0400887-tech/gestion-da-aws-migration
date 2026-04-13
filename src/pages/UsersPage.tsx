@@ -13,6 +13,9 @@ import PersonAddIcon from '@mui/icons-material/PersonAdd';
 import WorkIcon from '@mui/icons-material/Work';
 import AddIcon from '@mui/icons-material/Add';
 import ShieldIcon from '@mui/icons-material/Shield';
+import ApartmentIcon from '@mui/icons-material/Apartment';
+import PersonIcon from '@mui/icons-material/Person';
+import MapIcon from '@mui/icons-material/Map';
 
 import { generateClient } from 'aws-amplify/api';
 import type { Schema } from '../../amplify/data/resource';
@@ -49,6 +52,8 @@ export default function UsersPage() {
     can_edit_requests: false,
     can_approve_applications: false,
     can_manage_users: false,
+    can_export_data: false,
+    can_view_archived_requests: false,
   });
   
   const [positionFormData, setPositionFormData] = useState({ name: '', description: '' });
@@ -92,6 +97,8 @@ export default function UsersPage() {
         can_edit_requests: user.can_edit_requests ?? false,
         can_approve_applications: user.can_approve_applications ?? false,
         can_manage_users: user.can_manage_users ?? false,
+        can_export_data: user.can_export_data ?? false,
+        can_view_archived_requests: user.can_view_archived_requests ?? false,
       });
     } else {
       setEditingUser(null);
@@ -113,6 +120,8 @@ export default function UsersPage() {
         can_edit_requests: false,
         can_approve_applications: false,
         can_manage_users: false,
+        can_export_data: false,
+        can_view_archived_requests: false,
       });
     }
     setOpenUserDialog(true);
@@ -175,7 +184,8 @@ export default function UsersPage() {
           can_view_applications: true, can_approve_applications: true,
           can_view_payroll: true, can_view_qa: true,
           can_view_reports: true, can_view_adoption: true,
-          can_manage_users: true
+          can_manage_users: true, can_export_data: true,
+          can_view_archived_requests: true,
         };
         break;
       case 'COORDINATOR':
@@ -187,7 +197,8 @@ export default function UsersPage() {
           can_view_applications: true, can_approve_applications: true,
           can_view_payroll: false, can_view_qa: true,
           can_view_reports: true, can_view_adoption: false,
-          can_manage_users: false
+          can_manage_users: false, can_export_data: true,
+          can_view_archived_requests: true,
         };
         break;
       case 'RECRUITER':
@@ -199,7 +210,8 @@ export default function UsersPage() {
           can_view_applications: true, can_approve_applications: true,
           can_view_payroll: false, can_view_qa: false,
           can_view_reports: false, can_view_adoption: false,
-          can_manage_users: false
+          can_manage_users: false, can_export_data: false,
+          can_view_archived_requests: true,
         };
         break;
       case 'INSPECTOR':
@@ -211,12 +223,46 @@ export default function UsersPage() {
           can_view_applications: true, can_approve_applications: false,
           can_view_payroll: false, can_view_qa: true,
           can_view_reports: false, can_view_adoption: false,
-          can_manage_users: false
+          can_manage_users: false, can_export_data: false,
+          can_view_archived_requests: false,
         };
         break;
     }
     setUserFormData(newPerms);
   };
+
+  const renderPermissionModule = (title: string, icon: any, color: string, permissions: { field: keyof typeof userFormData, label: string }[]) => (
+    <Grid item xs={12} md={6}>
+      <Paper elevation={0} sx={{ 
+        p: 2, borderRadius: 3, border: `1px solid ${color}20`, bgcolor: 'white',
+        height: '100%', position: 'relative', overflow: 'hidden'
+      }}>
+        {/* Acabado decorativo lateral */}
+        <Box sx={{ position: 'absolute', top: 0, left: 0, width: 4, height: '100%', bgcolor: color }} />
+        
+        <Stack direction="row" alignItems="center" spacing={1.5} sx={{ mb: 2 }}>
+          <Avatar sx={{ bgcolor: `${color}15`, color: color, width: 32, height: 32 }}>{icon}</Avatar>
+          <Typography variant="subtitle2" sx={{ fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.5px' }}>{title}</Typography>
+        </Stack>
+        
+        <Stack spacing={0.5}>
+          {permissions.map((perm) => (
+            <FormControlLabel 
+              key={perm.field as string}
+              control={
+                <Switch 
+                  size="small"
+                  checked={!!userFormData[perm.field]} 
+                  onChange={(e) => setUserFormData({ ...userFormData, [perm.field]: e.target.checked })} 
+                />
+              } 
+              label={<Typography variant="caption" sx={{ fontWeight: 600, color: 'text.secondary' }}>{perm.label}</Typography>} 
+            />
+          ))}
+        </Stack>
+      </Paper>
+    </Grid>
+  );
 
   return (
     <Box sx={{ p: { xs: 2, md: 4 } }}>
@@ -304,7 +350,7 @@ export default function UsersPage() {
         </Box>
       )}
 
-      {/* DIÁLOGO DE USUARIO CON MATRIZ DE PERMISOS */}
+      {/* DIÁLOGO DE USUARIO CON MATRIZ DE PERMISOS GRUPAL */}
       <Dialog open={openUserDialog} onClose={() => setOpenUserDialog(false)} fullWidth maxWidth="md" PaperProps={{ sx: { borderRadius: 4 } }}>
         <DialogTitle sx={{ p: 3, bgcolor: '#0F172A', color: 'white', display: 'flex', alignItems: 'center', gap: 2 }}>
           <ShieldIcon sx={{ color: 'primary.main' }} />
@@ -322,10 +368,10 @@ export default function UsersPage() {
               <Grid item xs={12} sm={4}>
                 <TextField label="Email (Cognito)" fullWidth size="small" value={userFormData.email} onChange={(e) => setUserFormData({ ...userFormData, email: e.target.value })} disabled={!!editingUser} variant="filled" sx={{ bgcolor: 'white' }} />
               </Grid>
-              <Grid item xs={12} sm={4}>
+              <Grid item xs={12} sm={6}>
                 <FormControl fullWidth size="small" variant="filled">
                   <InputLabel>Rol Base</InputLabel>
-                  <Select value={userFormData.role} label="Rol Base" onChange={(e) => setUserFormData({ ...userFormData, role: e.target.value as any })} sx={{ bgcolor: 'white' }}>
+                  <Select value={userFormData.role} label="Rol Base" onChange={(e) => handleRoleChange(e.target.value as string)} sx={{ bgcolor: 'white' }}>
                     <MenuItem value="ADMIN">ADMIN (Acceso Total)</MenuItem>
                     <MenuItem value="RECRUITER">RECRUITER (Reclutamiento)</MenuItem>
                     <MenuItem value="INSPECTOR">INSPECTOR (Campo/GPS)</MenuItem>
@@ -334,11 +380,17 @@ export default function UsersPage() {
                   </Select>
                 </FormControl>
               </Grid>
-              <Grid item xs={12} sm={4}>
+
+              <Grid item xs={12} sm={6}>
                 <FormControl fullWidth size="small" variant="filled">
-                  <InputLabel>Zona Asignada</InputLabel>
-                  <Select value={userFormData.assigned_zone} label="Zona Asignada" onChange={(e) => setUserFormData({ ...userFormData, assigned_zone: e.target.value })} sx={{ bgcolor: 'white' }}>
-                    <MenuItem value="">Global (Todas)</MenuItem>
+                  <InputLabel>Zona Asignada (Solo Inspectores)</InputLabel>
+                  <Select 
+                    value={userFormData.assigned_zone} 
+                    label="Zona Asignada (Solo Inspectores)" 
+                    onChange={(e) => setUserFormData({ ...userFormData, assigned_zone: e.target.value })} 
+                    sx={{ bgcolor: 'white' }}
+                  >
+                    <MenuItem value="">Global (Todas las zonas)</MenuItem>
                     <MenuItem value="Centro">Centro</MenuItem>
                     <MenuItem value="Norte">Norte</MenuItem>
                     <MenuItem value="Noroeste">Noroeste</MenuItem>
@@ -347,57 +399,43 @@ export default function UsersPage() {
               </Grid>
 
               <Grid item xs={12}>
-                <Typography variant="subtitle2" sx={{ fontWeight: 900, mb: 2, mt: 2, display: 'flex', alignItems: 'center', gap: 1 }}>
-                  <ShieldIcon fontSize="small" color="primary" /> MATRIZ DE PERMISOS GRANULARES
+                <Typography variant="subtitle2" sx={{ fontWeight: 900, mb: 2, mt: 1, display: 'flex', alignItems: 'center', gap: 1 }}>
+                  <ShieldIcon fontSize="small" color="primary" /> MATRIZ DE PERMISOS POR MÓDULOS
                 </Typography>
-                <Paper elevation={0} sx={{ p: 3, borderRadius: 3, border: '1px solid rgba(0,0,0,0.05)', bgcolor: 'white' }}>
-                  <Grid container spacing={4}>
-                    {/* CATEGORÍA: OPERACIONES */}
-                    <Grid item xs={12} md={6}>
-                      <Typography variant="overline" sx={{ fontWeight: 900, color: 'primary.main' }}>Operaciones y Hoteles</Typography>
-                      <Divider sx={{ mb: 2 }} />
-                      <Stack spacing={1}>
-                        <FormControlLabel control={<Switch checked={userFormData.can_view_hotels} onChange={(e) => setUserFormData({ ...userFormData, can_view_hotels: e.target.checked })} />} label={<Typography variant="body2">Ver Hoteles</Typography>} />
-                        <FormControlLabel control={<Switch checked={userFormData.can_edit_hotels} onChange={(e) => setUserFormData({ ...userFormData, can_edit_hotels: e.target.checked })} />} label={<Typography variant="body2">Editar/Eliminar Hoteles</Typography>} />
-                        <FormControlLabel control={<Switch checked={userFormData.can_view_employees} onChange={(e) => setUserFormData({ ...userFormData, can_view_employees: e.target.checked })} />} label={<Typography variant="body2">Ver Personal</Typography>} />
-                        <FormControlLabel control={<Switch checked={userFormData.can_edit_employees} onChange={(e) => setUserFormData({ ...userFormData, can_edit_employees: e.target.checked })} />} label={<Typography variant="body2">Editar/Baja Personal</Typography>} />
-                      </Stack>
-                    </Grid>
+                <Grid container spacing={2}>
+                  {renderPermissionModule('Estructura (Hoteles)', <ApartmentIcon fontSize="small" />, '#FF5722', [
+                    { field: 'can_view_hotels', label: 'Ver Directorio de Hoteles' },
+                    { field: 'can_edit_hotels', label: 'Gestionar Hoteles (Crear/Editar)' },
+                  ])}
+                  
+                  {renderPermissionModule('Capital Humano', <PersonIcon fontSize="small" />, '#2196F3', [
+                    { field: 'can_view_employees', label: 'Ver Lista de Empleados' },
+                    { field: 'can_edit_employees', label: 'Gestionar Personal (Edición/Bajas)' },
+                  ])}
 
-                    {/* CATEGORÍA: RECLUTAMIENTO */}
-                    <Grid item xs={12} md={6}>
-                      <Typography variant="overline" sx={{ fontWeight: 900, color: 'primary.main' }}>Reclutamiento</Typography>
-                      <Divider sx={{ mb: 2 }} />
-                      <Stack spacing={1}>
-                        <FormControlLabel control={<Switch checked={userFormData.can_view_requests} onChange={(e) => setUserFormData({ ...userFormData, can_view_requests: e.target.checked })} />} label={<Typography variant="body2">Ver Solicitudes</Typography>} />
-                        <FormControlLabel control={<Switch checked={userFormData.can_edit_requests} onChange={(e) => setUserFormData({ ...userFormData, can_edit_requests: e.target.checked })} />} label={<Typography variant="body2">Crear/Editar Solicitudes</Typography>} />
-                        <FormControlLabel control={<Switch checked={userFormData.can_view_applications} onChange={(e) => setUserFormData({ ...userFormData, can_view_applications: e.target.checked })} />} label={<Typography variant="body2">Ver Aplicaciones</Typography>} />
-                        <FormControlLabel control={<Switch checked={userFormData.can_approve_applications} onChange={(e) => setUserFormData({ ...userFormData, can_approve_applications: e.target.checked })} />} label={<Typography variant="body2">Autorizar Alta (Aprobar)</Typography>} />
-                      </Stack>
-                    </Grid>
+                  {renderPermissionModule('Reclutamiento', <WorkIcon fontSize="small" />, '#4CAF50', [
+                    { field: 'can_view_requests', label: 'Ver Tablero de Vacantes' },
+                    { field: 'can_edit_requests', label: 'Gestionar Solicitudes (Crear/Editar)' },
+                    { field: 'can_view_applications', label: 'Ver Candidatos/Aplicaciones' },
+                    { field: 'can_approve_applications', label: 'Autorizar Contrataciones' },
+                    { field: 'can_view_archived_requests', label: 'Ver Histórico/Archivo' },
+                  ])}
 
-                    {/* CATEGORÍA: ADMINISTRACIÓN */}
-                    <Grid item xs={12} md={6}>
-                      <Typography variant="overline" sx={{ fontWeight: 900, color: 'primary.main' }}>Finanzas y Calidad</Typography>
-                      <Divider sx={{ mb: 2 }} />
-                      <Stack spacing={1}>
-                        <FormControlLabel control={<Switch checked={userFormData.can_view_payroll} onChange={(e) => setUserFormData({ ...userFormData, can_view_payroll: e.target.checked })} />} label={<Typography variant="body2">Revisión de Nómina</Typography>} />
-                        <FormControlLabel control={<Switch checked={userFormData.can_view_qa} onChange={(e) => setUserFormData({ ...userFormData, can_view_qa: e.target.checked })} />} label={<Typography variant="body2">Auditorías Calidad QA</Typography>} />
-                        <FormControlLabel control={<Switch checked={userFormData.can_view_reports} onChange={(e) => setUserFormData({ ...userFormData, can_view_reports: e.target.checked })} />} label={<Typography variant="body2">Reportes Gerenciales</Typography>} />
-                      </Stack>
-                    </Grid>
+                  {renderPermissionModule('Nómina y Calidad', <ShieldIcon fontSize="small" />, '#9C27B0', [
+                    { field: 'can_view_payroll', label: 'Revisión de Nómina (Payroll)' },
+                    { field: 'can_view_qa', label: 'Consultar Auditorías QA' },
+                  ])}
 
-                    {/* CATEGORÍA: SISTEMA */}
-                    <Grid item xs={12} md={6}>
-                      <Typography variant="overline" sx={{ fontWeight: 900, color: 'primary.main' }}>Configuración</Typography>
-                      <Divider sx={{ mb: 2 }} />
-                      <Stack spacing={1}>
-                        <FormControlLabel control={<Switch checked={userFormData.can_manage_users} onChange={(e) => setUserFormData({ ...userFormData, can_manage_users: e.target.checked })} />} label={<Typography variant="body2">Gestionar Otros Usuarios</Typography>} />
-                        <FormControlLabel control={<Switch checked={userFormData.can_view_adoption} onChange={(e) => setUserFormData({ ...userFormData, can_view_adoption: e.target.checked })} />} label={<Typography variant="body2">Panel de Adopción Digital</Typography>} />
-                      </Stack>
-                    </Grid>
-                  </Grid>
-                </Paper>
+                  {renderPermissionModule('Gerencial', <MapIcon fontSize="small" />, '#607D8B', [
+                    { field: 'can_view_reports', label: 'Reportes y Analítica Business' },
+                    { field: 'can_export_data', label: 'Exportar Datos a Excel' },
+                    { field: 'can_view_adoption', label: 'Métricas de Adopción Digital' },
+                  ])}
+
+                  {renderPermissionModule('Seguridad', <ShieldIcon fontSize="small" />, '#F44336', [
+                    { field: 'can_manage_users', label: 'Administrar Usuarios y Permisos' },
+                  ])}
+                </Grid>
               </Grid>
             </Grid>
           </Box>
@@ -407,6 +445,7 @@ export default function UsersPage() {
           <Button onClick={handleUserSubmit} variant="contained" sx={{ borderRadius: 2, px: 4, fontWeight: 'bold', boxShadow: '0 4px 12px rgba(255, 87, 34, 0.2)' }}>Guardar Configuración de Acceso</Button>
         </DialogActions>
       </Dialog>
+...
 
       {/* DIÁLOGO CARGO */}
       <Dialog open={openPositionDialog} onClose={() => setOpenPositionDialog(false)} fullWidth maxWidth="xs">

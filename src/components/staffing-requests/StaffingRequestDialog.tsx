@@ -174,7 +174,7 @@ export default function StaffingRequestDialog({ open, onClose, onSubmit, initial
           candidate_name: newCandidateName, 
           phone: formattedPhone,
           existing_employee_id: null 
-        }, formData.request_type); 
+        }, formData.request_type, initialData.hotel_id, formData.role); 
         
         setNewCandidateName(''); 
         setNewCandidatePhone('');
@@ -193,7 +193,7 @@ export default function StaffingRequestDialog({ open, onClose, onSubmit, initial
           request_id: String(initialData.id), 
           candidate_name: null, 
           existing_employee_id: selectedExistingEmployeeId 
-        }, formData.request_type); 
+        }, formData.request_type, initialData.hotel_id, formData.role); 
         setSelectedExistingEmployeeId(null); 
         setSnackbar({ open: true, message: 'Empleado asignado correctamente', severity: 'success' });
         fetchRequests();

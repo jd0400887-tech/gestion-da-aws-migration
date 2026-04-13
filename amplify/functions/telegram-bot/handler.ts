@@ -133,7 +133,7 @@ export const handler: Handler = async (event) => {
           await callGraphQL(CREATE_REQUEST, { input: {
             request_number, 
             hotel_id: hotel.id, 
-            role: pos.name, 
+            role: pos.name, // Esto ya usa el nombre oficial de la DB
             num_of_people: parseInt(qty),
             request_type: type === 'temp' ? 'temporal' : 'permanente', 
             start_date: date, 

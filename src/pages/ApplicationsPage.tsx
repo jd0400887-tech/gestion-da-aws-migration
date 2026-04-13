@@ -225,11 +225,16 @@ export default function ApplicationsPage() {
 
   const handleOpenAddEmployeeModal = (application: Application) => {
     setCurrentCandidate(application);
+    
+    // BÚSQUEDA INTELIGENTE: Buscar el cargo oficial que coincida (sin importar mayúsculas/minúsculas)
+    const rawRole = application.role || '';
+    const officialRole = rolesList.find(r => r.toLowerCase() === rawRole.toLowerCase()) || '';
+
     setNewEmployeeFormData({
       name: toTitleCase(application.candidate_name || ''),
       phone: application.phone || '',
-      hotelId: application.hotel_id || '', // Precarga el hotel de la solicitud
-      role: toTitleCase(application.role || ''),       // Precarga el cargo de la solicitud con TitleCase
+      hotelId: application.hotel_id || '', 
+      role: officialRole, // CARGO OFICIAL ENCONTRADO
       isActive: true,
       isBlacklisted: false,
       payrollType: 'timesheet',
@@ -291,7 +296,10 @@ export default function ApplicationsPage() {
         }
         return app.status === statusFilter;
       })
-      .filter(app => app.candidate_name.toLowerCase().includes(searchTerm.toLowerCase()));
+      .filter(app => {
+        const name = app.candidate_name || 'Candidato sin nombre';
+        return name.toLowerCase().includes(searchTerm.toLowerCase());
+      });
   }, [applications, statusFilter, hotelFilter, searchTerm, showCreated, isInspector, profile, hotels]);
 
   const pendingApps = filteredApplications.filter(app => app.status === 'pendiente');

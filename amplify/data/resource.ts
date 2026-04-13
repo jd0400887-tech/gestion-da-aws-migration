@@ -31,7 +31,9 @@ const schema = a.schema({
     allow.authenticated(),
     allow.owner(),
     allow.group('ADMIN'),
-    allow.group('COORDINATOR')
+    allow.group('COORDINATOR'),
+    allow.group('RECRUITER'),
+    allow.group('INSPECTOR')
   ]),
 
   // 2. ESTRUCTURA ORGANIZATIVA (HOTELES)
@@ -60,6 +62,8 @@ const schema = a.schema({
     allow.authenticated(),
     allow.group('ADMIN'),
     allow.group('COORDINATOR'),
+    allow.group('RECRUITER'),
+    allow.group('INSPECTOR'),
     allow.publicApiKey().to(['read', 'update']),
   ]),
 
@@ -91,7 +95,9 @@ const schema = a.schema({
   }).authorization((allow) => [
     allow.authenticated(),
     allow.group('ADMIN'),
-    allow.group('COORDINATOR')
+    allow.group('COORDINATOR'),
+    allow.group('RECRUITER'),
+    allow.group('INSPECTOR')
   ]),
 
   EmployeeStatusChange: a.model({
@@ -106,7 +112,8 @@ const schema = a.schema({
   }).authorization((allow) => [
     allow.authenticated(),
     allow.group('ADMIN'),
-    allow.group('COORDINATOR')
+    allow.group('COORDINATOR'),
+    allow.group('RECRUITER')
   ]),
 
   // 4. RECLUTAMIENTO Y SOLICITUDES
@@ -131,6 +138,8 @@ const schema = a.schema({
     allow.authenticated(),
     allow.group('ADMIN'),
     allow.group('COORDINATOR'),
+    allow.group('RECRUITER'),
+    allow.group('INSPECTOR'),
     allow.publicApiKey().to(['create', 'read'])
   ]),
 
@@ -144,7 +153,8 @@ const schema = a.schema({
   }).authorization((allow) => [
     allow.authenticated(),
     allow.group('ADMIN'),
-    allow.group('COORDINATOR')
+    allow.group('COORDINATOR'),
+    allow.group('RECRUITER')
   ]),
 
   // 4.1 APLICACIONES DE CANDIDATOS
@@ -159,7 +169,8 @@ const schema = a.schema({
   }).authorization((allow) => [
     allow.authenticated(),
     allow.group('ADMIN'),
-    allow.group('COORDINATOR')
+    allow.group('COORDINATOR'),
+    allow.group('RECRUITER')
   ]),
 
   Application: a.model({
@@ -180,7 +191,9 @@ const schema = a.schema({
   }).authorization((allow) => [
     allow.authenticated(),
     allow.group('ADMIN'),
-    allow.group('COORDINATOR')
+    allow.group('COORDINATOR'),
+    allow.group('RECRUITER'),
+    allow.group('INSPECTOR')
   ]),
 
   // 5. ASISTENCIA Y OPERACIONES
@@ -201,7 +214,8 @@ const schema = a.schema({
   }).authorization((allow) => [
     allow.authenticated(),
     allow.group('ADMIN'),
-    allow.group('COORDINATOR')
+    allow.group('COORDINATOR'),
+    allow.group('INSPECTOR')
   ]),
 
   PayrollReview: a.model({
@@ -237,7 +251,8 @@ const schema = a.schema({
   }).authorization((allow) => [
     allow.authenticated(),
     allow.group('ADMIN'),
-    allow.group('COORDINATOR')
+    allow.group('COORDINATOR'),
+    allow.group('INSPECTOR')
   ]),
 
   // 7. CONFIGURACIÓN
@@ -250,6 +265,7 @@ const schema = a.schema({
     allow.authenticated(),
     allow.group('ADMIN'),
     allow.group('COORDINATOR'),
+    allow.group('RECRUITER'),
     allow.publicApiKey().to(['read']),
   ]),
 

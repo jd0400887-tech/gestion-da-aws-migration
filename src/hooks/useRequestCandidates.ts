@@ -70,12 +70,14 @@ export const useRequestCandidates = (requestId: string | null, userName: string 
   /**
    * AÑADIR CANDIDATO CON REGLAS DE NEGOCIO SENIOR
    */
-  const addCandidate = async (newCandidate: Omit<RequestCandidate, 'id' | 'status'>, requestType: 'permanente' | 'temporal' = 'temporal') => {
+  const addCandidate = async (newCandidate: Omit<RequestCandidate, 'id' | 'status'>, requestType: 'permanente' | 'temporal' = 'temporal', hotelId?: string, role?: string) => {
     try {
+      setLoading(true);
       const client = generateClient<Schema>();
       let candidateId = newCandidate.existing_employee_id;
       let nameForLog = newCandidate.candidate_name;
 
+      // 1. Validaciones de Negocio para Empleados Existentes
       if (candidateId) {
         const { data: emp } = await client.models.Employee.get({ id: candidateId });
         if (emp) {
@@ -89,32 +91,55 @@ export const useRequestCandidates = (requestId: string | null, userName: string 
         }
       }
 
+      // 2. Crear Perfil de Candidato si es Externo
       if (!candidateId) {
-        const { data: cand } = await client.models.Candidate.create({
+        const { data: cand, errors: candErrors } = await client.models.Candidate.create({
           name: newCandidate.candidate_name || 'Nuevo Candidato',
           phone: newCandidate.phone || 'N/A',
           role: 'Externo',
           status: 'Activo'
         });
-        candidateId = cand?.id || '';
+        
+        if (candErrors || !cand) {
+          throw new Error("Error al crear el perfil del candidato externo.");
+        }
+        candidateId = cand.id;
       }
 
-      await client.models.Application.create({
+      // 3. Vincular Candidato con la Solicitud (Crear Aplicación)
+      const { errors: appErrors } = await client.models.Application.create({
         candidate_id: candidateId,
         request_id: String(requestId),
+        hotel_id: hotelId || '', 
+        candidate_name: nameForLog, // GUARDAR NOMBRE PARA EL MÓDULO DE APLICACIONES
+        phone: newCandidate.phone || 'N/A', // GUARDAR TELÉFONO
+        role: role || 'Sin cargo', 
         status: 'Asignado',
         applied_at: new Date().toISOString()
       });
 
+      if (appErrors) {
+        console.error('AWS Application Error:', appErrors);
+        throw new Error("AWS rechazó la vinculación del candidato.");
+      }
+
+      // 4. Registrar Historial
       const isCover = candidateId && requestType === 'temporal';
       const logMessage = isCover 
         ? `Candidato asignado como REFUERZO (COVER): ${nameForLog}`
         : `Candidato asignado: ${nameForLog}`;
 
       await staffingService.addHistory(String(requestId), logMessage, userName);
+      
+      // 5. Forzar refresco inmediato
       await fetchCandidates();
+      
+      console.info('✅ Candidato vinculado y lista actualizada.');
     } catch (error: any) {
+      console.error('❌ Error en addCandidate:', error.message);
       throw error;
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -128,10 +153,18 @@ export const useRequestCandidates = (requestId: string | null, userName: string 
       let apiStatus = newStatus;
       if (newStatus === 'Llegó') apiStatus = 'pendiente';
 
-      await client.models.Application.update({
+      const updateData: any = {
         id: applicationId,
         status: apiStatus
-      });
+      };
+
+      // Si marcamos como llegó, aprovechamos para sincronizar nombre y teléfono si faltaban
+      if (apiStatus === 'pendiente' && current) {
+        updateData.candidate_name = current.candidate_name;
+        updateData.phone = current.phone;
+      }
+
+      await client.models.Application.update(updateData);
 
       // REGISTRAR EN HISTORIAL
       await staffingService.addHistory(String(requestId), `Seguimiento: ${current?.candidate_name} cambió a estado ${newStatus}`, userName);
