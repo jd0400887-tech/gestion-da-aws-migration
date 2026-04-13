@@ -8,10 +8,12 @@ export const storage = defineStorage({
   name: 'oranjeappStorage',
   access: (allow) => ({
     'hotel-images/*': [
+      allow.groups(['ADMIN', 'INSPECTOR', 'RECRUITER']).to(['read', 'write', 'delete']),
       allow.authenticated.to(['read', 'write', 'delete']),
       allow.guest.to(['read'])
     ],
     'employee-docs/*': [
+      allow.groups(['ADMIN', 'INSPECTOR', 'RECRUITER']).to(['read', 'write', 'delete']),
       allow.authenticated.to(['read', 'write', 'delete'])
     ]
   })
