@@ -103,7 +103,12 @@ export const handler: Handler = async (event) => {
       }
 
       if (data.startsWith('d_')) {
-        const [_, posId, qty, type, date] = data.split('_');
+        const parts = data.split('_');
+        const posId = parts[1];
+        const qty = parts[2];
+        const type = parts[3];
+        const date = parts[4];
+        
         await telegram(token, 'sendMessage', {
           chat_id: chatId,
           text: `🕒 **Step 5/5**: Select the start time:\n\n📅 Date: ${date}`,
@@ -118,7 +123,12 @@ export const handler: Handler = async (event) => {
       }
 
       if (data.startsWith('f_')) {
-        const [_, posId, qty, type, date, time] = data.split('_');
+        const parts = data.split('_');
+        const posId = parts[1];
+        const qty = parts[2];
+        const type = parts[3];
+        const date = parts[4];
+        const time = parts[5];
         const hotelRes = await callGraphQL(LIST_HOTELS_BY_CHAT, { chatId });
         const hotel = hotelRes.listHotels.items[0];
         const posRes = await callGraphQL(GET_POSITION, { id: posId });
