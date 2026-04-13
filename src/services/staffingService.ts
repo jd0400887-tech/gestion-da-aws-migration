@@ -14,13 +14,24 @@ export const staffingService = {
   async getAll(): Promise<StaffingRequest[]> {
     try {
       const client = this.getClient();
+      console.info('📡 [AWS] Consultando solicitudes en RDS PostgreSQL...');
       const { data: requests, errors } = await client.models.StaffingRequest.list();
       
       if (errors) {
-        console.warn('⚠️ [AWS] Avisos al listar solicitudes:', errors);
+        console.warn('⚠️ [AWS] Avisos detallados al listar solicitudes:');
+        errors.forEach((err, i) => {
+          console.warn(`  [Error ${i+1}]: ${err.message}`, err);
+        });
       }
 
-      return (requests || [])
+      if (!requests || requests.length === 0) {
+        console.info('ℹ️ [AWS] No se encontraron solicitudes.');
+        return [];
+      }
+
+      console.info(`✅ [AWS] Se recuperaron ${requests.length} solicitudes.`);
+      
+      return requests
         .filter(r => r && r.id)
         .map(r => ({
           id: String(r.id),
