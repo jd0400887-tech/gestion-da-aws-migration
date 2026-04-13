@@ -10,7 +10,7 @@ const schema = a.schema({
     assigned_zone: a.string(),
     phone: a.string(),
     is_active: a.boolean().default(true),
-    // Permisos
+    // Permisos de Visualización (Módulos)
     can_view_hotels: a.boolean().default(false),
     can_view_employees: a.boolean().default(false),
     can_view_requests: a.boolean().default(false),
@@ -19,11 +19,14 @@ const schema = a.schema({
     can_view_qa: a.boolean().default(false),
     can_view_reports: a.boolean().default(false),
     can_view_adoption: a.boolean().default(false),
+    // Permisos de Edición/Acción (Funcionalidades)
     can_edit_hotels: a.boolean().default(false),
     can_edit_employees: a.boolean().default(false),
     can_edit_requests: a.boolean().default(false),
     can_approve_applications: a.boolean().default(false),
     can_manage_users: a.boolean().default(false),
+    can_export_data: a.boolean().default(false), // Nueva funcionalidad: Exportar Excel
+    can_view_archived_requests: a.boolean().default(false), // Nueva funcionalidad: Ver Archivo
   }).authorization((allow) => [
     allow.authenticated(),
     allow.owner(),
@@ -123,6 +126,7 @@ const schema = a.schema({
     notes: a.string(),
     is_archived: a.boolean().default(false),
     history: a.hasMany('StaffingRequestHistory', 'request_id'),
+    applications: a.hasMany('Application', 'request_id'),
   }).authorization((allow) => [
     allow.authenticated(),
     allow.group('ADMIN'),
