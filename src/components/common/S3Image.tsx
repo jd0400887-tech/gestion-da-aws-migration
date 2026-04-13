@@ -30,6 +30,12 @@ export default function S3Image({ path, alt, style, height, className }: S3Image
 
       let s3Path = path;
 
+      // Limpieza de ruta: eliminar espacios y slashes iniciales
+      s3Path = s3Path.trim();
+      if (s3Path.startsWith('/')) {
+        s3Path = s3Path.substring(1);
+      }
+
       // SI ES UNA URL DE S3 (Legacy Fix profunda)
       if (path.includes('s3.amazonaws.com') || path.includes('.s3.') || path.includes('?X-Amz-Algorithm')) {
         try {
@@ -55,7 +61,7 @@ export default function S3Image({ path, alt, style, height, className }: S3Image
           
           if (!foundMarker) s3Path = pathname;
         } catch (e) {
-          console.warn("Error parseando URL legacy de S3:", e);
+          console.warn("⚠️ [S3Image] Error parseando URL legacy:", e);
         }
       } 
       // SI ES UNA URL EXTERNA NORMAL (No S3)
@@ -65,17 +71,23 @@ export default function S3Image({ path, alt, style, height, className }: S3Image
         return;
       }
 
+      if (!s3Path) {
+        setLoading(false);
+        setUrl(null);
+        return;
+      }
+
       try {
         // Pedimos una URL fresca a AWS usando la ruta limpia
         const result = await getUrl({ 
           path: s3Path,
           options: {
-            expiresIn: 3600 // Válida por 1 hora
+            expiresIn: 3600 
           }
         });
         setUrl(result.url.toString());
       } catch (error) {
-        console.error("Error resolviendo imagen S3:", error);
+        console.error("❌ [S3Image] Error resolviendo ruta S3:", s3Path, error);
         setUrl(null);
       } finally {
         setLoading(false);

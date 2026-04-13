@@ -2,7 +2,8 @@ import type { Handler } from 'aws-lambda';
 
 /**
  * ORANJEBOT: SMART RECRUITMENT BOT 🍊
- * Sincronizado con esquema RDS CamelCase.
+ * Language: English (EN)
+ * Synchronized with RDS CamelCase Schema.
  */
 
 async function telegram(token: string, method: string, body: any) {
@@ -56,11 +57,11 @@ export const handler: Handler = async (event) => {
         const posId = data.split('_')[1];
         await telegram(token, 'sendMessage', {
           chat_id: chatId,
-          text: `🔢 **Paso 2/5**: ¿Cuántas personas necesitas?`,
+          text: `🔢 **Step 2/5**: How many people do you need?`,
           reply_markup: { inline_keyboard: [
-            [{ text: '1 Persona', callback_data: `q_${posId}_1` }, { text: '2 Personas', callback_data: `q_${posId}_2` }],
-            [{ text: '3 Personas', callback_data: `q_${posId}_3` }, { text: 'Más de 3', callback_data: `q_${posId}_5` }],
-            [{ text: '❌ Cancelar', callback_data: 'c' }]
+            [{ text: '1 Person', callback_data: `q_${posId}_1` }, { text: '2 People', callback_data: `q_${posId}_2` }],
+            [{ text: '3 People', callback_data: `q_${posId}_3` }, { text: 'More than 3', callback_data: `q_${posId}_5` }],
+            [{ text: '❌ Cancel', callback_data: 'c' }]
           ]}
         });
       }
@@ -69,11 +70,11 @@ export const handler: Handler = async (event) => {
         const [_, posId, qty] = data.split('_');
         await telegram(token, 'sendMessage', {
           chat_id: chatId,
-          text: `💼 **Paso 3/5**: Tipo de Contratación:`,
+          text: `💼 **Step 3/5**: Employment Type:`,
           reply_markup: { inline_keyboard: [
-            [{ text: '⏳ Temporal (Refuerzo)', callback_data: `t_${posId}_${qty}_temp` }],
-            [{ text: '👔 Permanente (Fijo)', callback_data: `t_${posId}_${qty}_perm` }],
-            [{ text: '❌ Cancelar', callback_data: 'c' }]
+            [{ text: '⏳ Temporary (Support)', callback_data: `t_${posId}_${qty}_temp` }],
+            [{ text: '👔 Permanent (Full-time)', callback_data: `t_${posId}_${qty}_perm` }],
+            [{ text: '❌ Cancel', callback_data: 'c' }]
           ]}
         });
       }
@@ -81,18 +82,22 @@ export const handler: Handler = async (event) => {
       if (data.startsWith('t_')) {
         const [_, posId, qty, type] = data.split('_');
         const dates = [];
-        for (let i = 0; i < 4; i++) {
+        for (let i = 0; i < 8; i++) {
           const d = new Date();
           d.setDate(d.getDate() + i);
           const dateStr = d.toISOString().split('T')[0];
-          const label = i === 0 ? 'Hoy' : (i === 1 ? 'Mañana' : dateStr);
+          
+          const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+          const dayName = days[d.getDay()];
+          const label = i === 0 ? '🍊 Today!' : (i === 1 ? 'Tomorrow' : `${dayName} ${d.getDate()}/${d.getMonth()+1}`);
+          
           dates.push([{ text: `📅 ${label}`, callback_data: `d_${posId}_${qty}_${type}_${dateStr}` }]);
         }
-        dates.push([{ text: '❌ Cancelar', callback_data: 'c' }]);
+        dates.push([{ text: '🟠 Back / Cancel', callback_data: 'c' }]);
 
         await telegram(token, 'sendMessage', {
           chat_id: chatId,
-          text: `🍊 **Paso 4/5**: ¿Cuándo deben iniciar?`,
+          text: `🍊 **Step 4/5**: When should they start?\n\nYou can select any day for the upcoming week.`,
           reply_markup: { inline_keyboard: dates }
         });
       }
@@ -101,12 +106,12 @@ export const handler: Handler = async (event) => {
         const [_, posId, qty, type, date] = data.split('_');
         await telegram(token, 'sendMessage', {
           chat_id: chatId,
-          text: `🕒 **Paso 5/5**: Selecciona el turno:`,
+          text: `🕒 **Step 5/5**: Select the shift:\n\n📅 Selected Date: ${date}`,
           reply_markup: { inline_keyboard: [
-            [{ text: '🌅 Mañana (07:00 AM)', callback_data: `f_${posId}_${qty}_${type}_${date}_07:00` }],
-            [{ text: '☀️ Tarde (02:00 PM)', callback_data: `f_${posId}_${qty}_${type}_${date}_14:00` }],
-            [{ text: '🌙 Noche (10:00 PM)', callback_data: `f_${posId}_${qty}_${type}_${date}_22:00` }],
-            [{ text: '❌ Cancelar', callback_data: 'c' }]
+            [{ text: '🌅 Morning (07:00 AM)', callback_data: `f_${posId}_${qty}_${type}_${date}_07:00` }],
+            [{ text: '☀️ Afternoon (02:00 PM)', callback_data: `f_${posId}_${qty}_${type}_${date}_14:00` }],
+            [{ text: '🌙 Night (10:00 PM)', callback_data: `f_${posId}_${qty}_${type}_${date}_22:00` }],
+            [{ text: '🟠 Cancel', callback_data: 'c' }]
           ]}
         });
       }
@@ -119,20 +124,33 @@ export const handler: Handler = async (event) => {
         const pos = posRes.getPosition;
 
         if (hotel && pos) {
-          const request_number = `SR${new Date().getFullYear().toString().slice(-2)}-${Math.floor(Math.random()*900)+100}`;
+          const year = new Date().getFullYear().toString().slice(-2);
+          const random = Math.floor(Math.random()*900)+100;
+          const request_number = `SR${year}-${random}`;
           const now = new Date().toISOString().split('T')[0];
+
           await callGraphQL(CREATE_REQUEST, { input: {
-            request_number, hotel_id: hotel.id, role: pos.name, num_of_people: parseInt(qty),
-            request_type: type === 'temp' ? 'temporal' : 'permanente', start_date: date, request_date: now, shift_time: time, status: 'Pendiente'
+            request_number, 
+            hotel_id: hotel.id, 
+            role: pos.name, 
+            num_of_people: parseInt(qty),
+            request_type: type === 'temp' ? 'temporal' : 'permanente', 
+            start_date: date, 
+            request_date: now, 
+            shift_time: time, 
+            status: 'Pendiente',
+            priority: 'medium',
+            is_archived: false
           }});
+
           await telegram(token, 'sendMessage', { 
             chat_id: chatId, 
-            text: `🍊 **¡Solicitud Creada con Éxito!**\n\n📋 **Folio:** ${request_number}\n🏨 **Hotel:** ${hotel.name}\n👤 **Cargo:** ${pos.name}\n👥 **Cantidad:** ${qty}\n📅 **Inicio:** ${date}\n🕒 **Turno:** ${time}\n\nEl equipo de reclutamiento ya está trabajando en tu solicitud.` 
+            text: `🍊 **REQUEST REGISTERED!** 🍊\n\n📋 **Folio:** \`${request_number}\`\n🏨 **Hotel:** ${hotel.name}\n👤 **Position:** ${pos.name}\n👥 **Quantity:** ${qty} people\n📅 **Start Date:** ${date}\n🕒 **Shift:** ${time}\n\nOur recruitment team has received your order and we are working on it. ✨` 
           });
         }
       }
 
-      if (data === 'c') await telegram(token, 'sendMessage', { chat_id: chatId, text: "❌ Solicitud cancelada." });
+      if (data === 'c') await telegram(token, 'sendMessage', { chat_id: chatId, text: "🟠 Request cancelled. I'm here if you need me! 🍊" });
       await telegram(token, 'answerCallbackQuery', { callback_query_id: cb.id });
       return { statusCode: 200, body: 'OK' };
     }
@@ -144,11 +162,11 @@ export const handler: Handler = async (event) => {
         const hotelRes = await callGraphQL(GET_HOTEL, { id: hotelId });
         if (hotelRes.getHotel) {
           await callGraphQL(UPDATE_HOTEL_CHAT, { id: hotelId, chatId });
-          await telegram(token, 'sendMessage', { chat_id: chatId, text: `🍊 ¡Hola! Bienvenido a **OranjeBot**. He vinculado este chat con **${hotelRes.getHotel.name}** correctamente.` });
+          await telegram(token, 'sendMessage', { chat_id: chatId, text: `🍊 **VINCULATION SUCCESSFUL!** 🍊\n\nHello! I have linked this chat with **${hotelRes.getHotel.name}**. You can now request staff by typing /new or any message.` });
           return { statusCode: 200, body: 'OK' };
         }
       }
-      await telegram(token, 'sendMessage', { chat_id: chatId, text: "🚀 Bienvenido a OranjeBot. Usa el enlace desde tu Dashboard para vincular tu hotel." });
+      await telegram(token, 'sendMessage', { chat_id: chatId, text: "🚀 Welcome to **OranjeBot**. To get started, use the vinculation link from your web Dashboard. 🍊" });
     }
 
     if (text === '/new' || !text.startsWith('/')) {
@@ -156,28 +174,26 @@ export const handler: Handler = async (event) => {
       if (hotelRes.listHotels.items.length > 0) {
         const hotel = hotelRes.listHotels.items[0];
         const posRes = await callGraphQL(LIST_POSITIONS);
-        const buttons = posRes.listPositions.items.map((p: any) => ([{ text: `🍊 ${p.name}`, callback_data: `p_${p.id}` }]));
-        buttons.push([{ text: '❌ Cancelar', callback_data: 'c' }]);
+        
+        const buttons = posRes.listPositions.items.map((p: any) => ([{ text: `🍊 Position: ${p.name}`, callback_data: `p_${p.id}` }]));
+        buttons.push([{ text: '🟠 Cancel', callback_data: 'c' }]);
 
         await telegram(token, 'sendMessage', { 
           chat_id: chatId, 
-          text: `👋 **Hola Gerente de ${hotel.name}**\n\n¿Necesitas personal nuevo? Puedes usar el portal interactivo o seleccionar un cargo abajo.\n\n📋 **Paso 1/5**: Selecciona el cargo:`, 
+          text: `🍊 **REQUEST MENU** 🍊\n\nHello Manager of **${hotel.name}**. How can we help you today?\n\n👇 **Select the position you need to cover:**`, 
           reply_markup: { 
-            inline_keyboard: [
-              [{ text: "🚀 ABRIR PORTAL ORANJE 🍊", web_app: { url: "https://master.d1okkcyyykb2rg.amplifyapp.com/solicitud-bot" } }],
-              ...buttons
-            ] 
+            inline_keyboard: buttons
           } 
         });
       } else if (text === '/new') {
-        await telegram(token, 'sendMessage', { chat_id: chatId, text: "⚠️ Este chat no está vinculado a ningún hotel. Usa el enlace oficial desde la web." });
+        await telegram(token, 'sendMessage', { chat_id: chatId, text: "⚠️ **Access Denied**: This chat is not linked. Please link it through the administrative portal. 🍊" });
       }
     }
 
     return { statusCode: 200, body: 'OK' };
   } catch (error: any) {
     console.error(error);
-    if (chatId !== '0') await telegram(token, 'sendMessage', { chat_id: chatId, text: `❌ Error en el Bot Oranje:\n${error.message}` });
+    if (chatId !== '0') await telegram(token, 'sendMessage', { chat_id: chatId, text: `❌ OranjeBot Error:\n${error.message}` });
     return { statusCode: 500, body: 'Error' };
   }
 };

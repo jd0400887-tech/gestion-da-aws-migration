@@ -17,6 +17,7 @@ import PhoneIcon from '@mui/icons-material/Phone';
 import EmailIcon from '@mui/icons-material/Email';
 import SmartToyIcon from '@mui/icons-material/SmartToy';
 
+import S3Image from '../common/S3Image';
 import { toTitleCase } from '../../utils/stringUtils';
 import { useAuth } from '../../hooks/useAuth';
 import type { Hotel } from '../../types';
@@ -237,11 +238,11 @@ export default function HotelForm({ hotelData, onFormChange, uploadHotelImage, i
                 <Box><CircularProgress size={30} /><Typography variant="caption" display="block" sx={{ mt: 1 }}>AWS S3...</Typography></Box>
               ) : hotelData.imageUrl ? (
                 <Box sx={{ position: 'relative', height: '100%' }}>
-                  <img src={hotelData.imageUrl} alt="Hotel" style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: '8px' }} />
+                  <S3Image path={hotelData.imageUrl} alt="Hotel" height="100%" style={{ borderRadius: '8px' }} />
                   <IconButton 
                     size="small" 
                     onClick={handleUploadClick}
-                    sx={{ position: 'absolute', bottom: 5, right: 5, bgcolor: 'primary.main', color: 'white', '&:hover': { bgcolor: 'primary.dark' } }}
+                    sx={{ position: 'absolute', bottom: 5, right: 5, bgcolor: 'primary.main', color: 'white', '&:hover': { bgcolor: 'primary.dark' }, zIndex: 2 }}
                   >
                     <AddPhotoAlternateIcon fontSize="small" />
                   </IconButton>
