@@ -106,11 +106,12 @@ export const handler: Handler = async (event) => {
         const [_, posId, qty, type, date] = data.split('_');
         await telegram(token, 'sendMessage', {
           chat_id: chatId,
-          text: `🕒 **Step 5/5**: Select the shift:\n\n📅 Selected Date: ${date}`,
+          text: `🕒 **Step 5/5**: Select the start time:\n\n📅 Date: ${date}`,
           reply_markup: { inline_keyboard: [
-            [{ text: '🌅 Morning (07:00 AM)', callback_data: `f_${posId}_${qty}_${type}_${date}_07:00` }],
-            [{ text: '☀️ Afternoon (02:00 PM)', callback_data: `f_${posId}_${qty}_${type}_${date}_14:00` }],
-            [{ text: '🌙 Night (10:00 PM)', callback_data: `f_${posId}_${qty}_${type}_${date}_22:00` }],
+            [{ text: '🌅 07:00 AM', callback_data: `f_${posId}_${qty}_${type}_${date}_07:00` }, { text: '🌅 08:00 AM', callback_data: `f_${posId}_${qty}_${type}_${date}_08:00` }],
+            [{ text: '☀️ 02:00 PM', callback_data: `f_${posId}_${qty}_${type}_${date}_14:00` }, { text: '☀️ 03:00 PM', callback_data: `f_${posId}_${qty}_${type}_${date}_15:00` }],
+            [{ text: '🌙 10:00 PM', callback_data: `f_${posId}_${qty}_${type}_${date}_22:00` }, { text: '🌙 11:00 PM', callback_data: `f_${posId}_${qty}_${type}_${date}_23:00` }],
+            [{ text: '🕒 Other / Custom', callback_data: `f_${posId}_${qty}_${type}_${date}_Flexible` }],
             [{ text: '🟠 Cancel', callback_data: 'c' }]
           ]}
         });
@@ -138,14 +139,14 @@ export const handler: Handler = async (event) => {
             start_date: date, 
             request_date: now, 
             shift_time: time, 
-            status: 'Pendiente',
+            status: 'Enviada a Reclutamiento',
             priority: 'medium',
             is_archived: false
           }});
 
           await telegram(token, 'sendMessage', { 
             chat_id: chatId, 
-            text: `🍊 **REQUEST REGISTERED!** 🍊\n\n📋 **Folio:** \`${request_number}\`\n🏨 **Hotel:** ${hotel.name}\n👤 **Position:** ${pos.name}\n👥 **Quantity:** ${qty} people\n📅 **Start Date:** ${date}\n🕒 **Shift:** ${time}\n\nOur recruitment team has received your order and we are working on it. ✨` 
+            text: `🍊 **REQUEST REGISTERED!** 🍊\n\n📋 **Folio:** \`${request_number}\`\n🏨 **Hotel:** ${hotel.name}\n👤 **Position:** ${pos.name}\n👥 **Quantity:** ${qty} people\n📅 **Start Date:** ${date}\n🕒 **Shift:** ${time}\n\n🚀 **Status:** Sent to Recruitment\n\nOur team is already working on your request! ✨` 
           });
         }
       }

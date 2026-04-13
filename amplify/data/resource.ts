@@ -144,10 +144,28 @@ const schema = a.schema({
   ]),
 
   // 4.1 APLICACIONES DE CANDIDATOS
+  Candidate: a.model({
+    id: a.id(),
+    name: a.string().required(),
+    phone: a.string().required(),
+    email: a.string(),
+    role: a.string(),
+    status: a.string().default('Activo'),
+    applications: a.hasMany('Application', 'candidate_id'),
+  }).authorization((allow) => [
+    allow.authenticated(),
+    allow.group('ADMIN'),
+    allow.group('COORDINATOR')
+  ]),
+
   Application: a.model({
     id: a.id(),
-    candidate_name: a.string().required(), 
-    phone: a.string().required(),
+    candidate_name: a.string(), 
+    candidate_id: a.id(),
+    candidate: a.belongsTo('Candidate', 'candidate_id'),
+    request_id: a.id(),
+    request: a.belongsTo('StaffingRequest', 'request_id'),
+    phone: a.string(),
     email: a.string(),
     hotel_id: a.id().required(), 
     hotel: a.belongsTo('Hotel', 'hotel_id'),

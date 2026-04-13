@@ -43,6 +43,8 @@ export default function QAPage() {
   const [loading, setLoading] = useState(true);
   const [audits, setAudits] = useState<any[]>([]);
 
+  const isInspector = profile?.role === 'INSPECTOR';
+
   // Cargar auditorías reales de AWS
   const fetchAudits = async () => {
     setLoading(true);
@@ -71,12 +73,21 @@ export default function QAPage() {
           score: a.score,
           checklist_results: results,
           auditor_name: name,
+          hotelZone: hotel?.zone || 'N/A',
           hotelName: hotel?.name || 'N/A',
           inspectorName: name || 'Inspector',
           targetName: type === 'staff' ? (employee?.name || 'Empleado') : (hotel?.name || 'Hotel'),
           targetType: type
         };
-      }).sort((a, b) => new Date(b.audit_date).getTime() - new Date(a.audit_date).getTime());
+      })
+      .filter(audit => {
+        // SEGURIDAD: Filtrar historial por zona para Inspectores
+        if (isInspector) {
+          return audit.hotelZone === (profile?.assigned_zone || 'Centro');
+        }
+        return true;
+      })
+      .sort((a, b) => new Date(b.audit_date).getTime() - new Date(a.audit_date).getTime());
 
       setAudits(enrichedAudits);
     } catch (error: any) {
@@ -98,9 +109,12 @@ export default function QAPage() {
   const coverageStats = useMemo(() => {
     const currentMonth = new Date().toISOString().slice(0, 7); // YYYY-MM
     
-    // Filtrar empleados de la zona del inspector si aplica
-    const targetEmployees = profile?.role === 'INSPECTOR' 
-      ? employees.filter(e => hotels.find(h => h.id === e.hotelId)?.zone === profile.assigned_zone)
+    // Filtrar empleados de la zona del inspector de forma estricta
+    const targetEmployees = isInspector 
+      ? employees.filter(e => {
+          const hotel = hotels.find(h => h.id === e.hotelId);
+          return hotel?.zone === (profile?.assigned_zone || 'Centro');
+        })
       : employees;
 
     const auditedIds = new Set(
@@ -118,7 +132,7 @@ export default function QAPage() {
       percent,
       totalToAudit: targetEmployees.length
     };
-  }, [employees, audits, profile, hotels]);
+  }, [employees, audits, profile, hotels, isInspector]);
 
   const stats = useMemo(() => {
     if (audits.length === 0) return { totalAudits: 0, avgScore: 0, criticalFailures: 0 };

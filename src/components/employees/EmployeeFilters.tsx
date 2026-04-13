@@ -118,22 +118,28 @@ export default function EmployeeFilters({
         {/* FILA INFERIOR: SELECTORES Y BÚSQUEDA */}
         <Grid container spacing={2}>
           <Grid item xs={12} sm={6} md={3}>
-            <FormControl fullWidth size="small">
-              <InputLabel sx={{ fontWeight: 600 }}>Zona Operativa</InputLabel>
-              <Select
-                value={zoneFilter}
-                onChange={(e) => onZoneChange(e.target.value)}
-                label="Zona Operativa"
-                disabled={isInspector}
-                startAdornment={<InputAdornment position="start"><MapIcon fontSize="small" color="primary" /></InputAdornment>}
-                sx={{ borderRadius: 2, fontWeight: 600 }}
-              >
-                <MenuItem value="all">Todas las Zonas</MenuItem>
-                <MenuItem value="Centro">Centro</MenuItem>
-                <MenuItem value="Norte">Norte</MenuItem>
-                <MenuItem value="Noroeste">Noroeste</MenuItem>
-              </Select>
-            </FormControl>
+            <Tooltip title={isInspector ? `Su acceso está restringido a la zona: ${profile?.assigned_zone || 'Centro'}` : "Filtrar por zona geográfica"}>
+              <FormControl fullWidth size="small">
+                <InputLabel sx={{ fontWeight: 600 }}>Zona Operativa</InputLabel>
+                <Select
+                  value={zoneFilter}
+                  onChange={(e) => onZoneChange(e.target.value)}
+                  label="Zona Operativa"
+                  disabled={isInspector}
+                  startAdornment={<InputAdornment position="start"><MapIcon fontSize="small" color={isInspector ? "warning" : "primary"} /></InputAdornment>}
+                  sx={{ 
+                    borderRadius: 2, 
+                    fontWeight: 600,
+                    bgcolor: isInspector ? 'rgba(255, 87, 34, 0.05)' : 'transparent'
+                  }}
+                >
+                  <MenuItem value="all">Todas las Zonas</MenuItem>
+                  <MenuItem value="Centro">Centro</MenuItem>
+                  <MenuItem value="Norte">Norte</MenuItem>
+                  <MenuItem value="Noroeste">Noroeste</MenuItem>
+                </Select>
+              </FormControl>
+            </Tooltip>
           </Grid>
 
           <Grid item xs={12} sm={6} md={4}>
@@ -148,7 +154,10 @@ export default function EmployeeFilters({
               >
                 <MenuItem value=""><em>Cualquier Hotel</em></MenuItem>
                 {hotels
-                  .filter(h => zoneFilter === 'all' || h.zone === zoneFilter)
+                  .filter(h => {
+                    const activeZone = isInspector ? (profile?.assigned_zone || 'Centro') : zoneFilter;
+                    return activeZone === 'all' || h.zone === activeZone;
+                  })
                   .map((hotel) => (
                     <MenuItem key={hotel.id} value={hotel.id}>{hotel.name}</MenuItem>
                   ))}

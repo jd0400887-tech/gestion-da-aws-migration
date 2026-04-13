@@ -34,8 +34,9 @@ export default function EmployeesPage() {
   const [statusFilter, setStatusFilter] = useState('active');
   
   const isAdmin = profile?.role === 'ADMIN';
-  const initialZone = profile?.role === 'INSPECTOR' 
-    ? (profile.assigned_zone || 'Centro') 
+  const isInspector = profile?.role === 'INSPECTOR';
+  const initialZone = isInspector 
+    ? (profile?.assigned_zone || 'Centro') 
     : 'all';
     
   const [zoneFilter, setZoneFilter] = useState(initialZone);
@@ -49,10 +50,10 @@ export default function EmployeesPage() {
   const [employeeToDelete, setEmployeeToDelete] = useState<string | null>(null);
 
   useEffect(() => {
-    if (profile?.role === 'INSPECTOR') {
-      setZoneFilter(profile.assigned_zone || 'Centro');
+    if (isInspector) {
+      setZoneFilter(profile?.assigned_zone || 'Centro');
     }
-  }, [profile]);
+  }, [profile, isInspector]);
 
   const filteredEmployees = useMemo(() => {
     const documentationFilter = searchParams.get('documentation');
@@ -64,7 +65,14 @@ export default function EmployeesPage() {
       if (statusFilter === 'blacklisted' && !employee.isBlacklisted) return false;
       if (!employee.name.toLowerCase().includes(searchQuery.toLowerCase())) return false;
       
-      if (zoneFilter !== 'all') {
+      // RESTRICCIÓN ESTRICTA PARA INSPECTORES
+      if (isInspector) {
+        const hotel = hotels.find(h => h.id === employee.hotelId);
+        const userZone = profile?.assigned_zone || 'Centro';
+        if (hotel?.zone !== userZone) return false;
+      } 
+      // FILTRO OPCIONAL PARA OTROS ROLES (ADMIN, COORDINATOR, RECRUITER)
+      else if (zoneFilter !== 'all') {
         const hotel = hotels.find(h => h.id === employee.hotelId);
         if (hotel?.zone !== zoneFilter) return false;
       }
@@ -73,7 +81,7 @@ export default function EmployeesPage() {
 
       return true;
     });
-  }, [employees, statusFilter, searchQuery, hotelFilter, searchParams, zoneFilter, hotels]);
+  }, [employees, statusFilter, searchQuery, hotelFilter, searchParams, zoneFilter, hotels, isInspector, profile]);
 
   const handleOpenAddModal = () => {
     setCurrentEmployee({ isActive: true, isBlacklisted: false, payrollType: 'timesheet', employeeType: 'permanente' });

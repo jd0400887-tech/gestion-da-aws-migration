@@ -46,7 +46,12 @@ export default function StaffingRequestsPage() {
   const { activeRequests, loading, addRequest, updateRequest, archiveRequest, deleteRequest, fetchRequests } = useStaffingRequestsContext();
   const { hotels } = useHotels();
 
-  const [zoneFilter, setZoneFilter] = useState<'Todas' | 'Centro' | 'Norte' | 'Noroeste'>('Todas');
+  const isAdmin = profile?.role === 'ADMIN';
+  const isInspector = profile?.role === 'INSPECTOR';
+  const isRecruiter = profile?.role === 'RECRUITER';
+
+  const initialZone = isInspector ? (profile?.assigned_zone as any || 'Centro') : 'Todas';
+  const [zoneFilter, setZoneFilter] = useState<'Todas' | 'Centro' | 'Norte' | 'Noroeste'>(initialZone);
   const [hotelFilter, setHotelFilter] = useState<string>('all');
   const [requestTypeFilter, setRequestTypeFilter] = useState<'all' | 'temporal' | 'permanente'>('all');
   const [searchTerm, setSearchTerm] = useState<string>('');
@@ -61,22 +66,16 @@ export default function StaffingRequestsPage() {
     severity: 'info'
   });
 
-  const isAdmin = profile?.role === 'ADMIN';
-  const isInspector = profile?.role === 'INSPECTOR';
-  const isRecruiter = profile?.role === 'RECRUITER';
-
   const showMessage = (message: string, severity: 'success' | 'info' | 'warning' | 'error' = 'info') => {
     setSnackbar({ open: true, message, severity });
   };
 
   const handleOpenDialog = (request?: StaffingRequest) => {
-    // Restricción: Reclutamiento no puede crear nuevas
     if (!request && isRecruiter) {
       showMessage('Como reclutador, no tienes permisos para crear nuevas solicitudes.', 'warning');
       return;
     }
     
-    // Restricción: Inspector solo puede editar si es Pendiente
     if (request && isInspector && request.status !== 'Pendiente') {
       showMessage('Como inspector, solo puedes editar solicitudes en estado "Pendiente".', 'warning');
       return;
@@ -132,6 +131,14 @@ export default function StaffingRequestsPage() {
   const filteredRequests = useMemo(() => {
     return activeRequests
       .filter(req => {
+        // RESTRICCIÓN ESTRICTA PARA INSPECTORES
+        if (isInspector) {
+          const hotel = hotels.find(h => h.id === req.hotel_id);
+          const userZone = profile?.assigned_zone || 'Centro';
+          return hotel?.zone === userZone;
+        }
+        
+        // FILTRO VOLUNTARIO PARA OTROS ROLES
         if (zoneFilter === 'Todas') return true;
         const hotel = hotels.find(h => h.id === req.hotel_id);
         return hotel?.zone === zoneFilter;
@@ -143,7 +150,7 @@ export default function StaffingRequestsPage() {
         const lowerCaseSearch = searchTerm.toLowerCase();
         return (req.role.toLowerCase().includes(lowerCaseSearch) || (req.notes && req.notes.toLowerCase().includes(lowerCaseSearch)));
       });
-  }, [activeRequests, hotelFilter, searchTerm, zoneFilter, hotels]);
+  }, [activeRequests, hotelFilter, searchTerm, zoneFilter, hotels, isInspector, profile]);
 
   const requestsByStatus = useMemo(() => {
     const grouped: { [key in StaffingRequest['status']]?: StaffingRequest[] } = {};
@@ -168,14 +175,11 @@ export default function StaffingRequestsPage() {
     const activeContainer = active.data.current.sortable.containerId;
     const overContainer = (over.data.current?.sortable?.containerId || over.id) as StaffingRequest['status'];
 
-    // Lógica de restricciones de movimiento
     if (isInspector) {
-      // Inspector solo puede mover a Pendiente o Enviada a Reclutamiento
       if (overContainer !== 'Pendiente' && overContainer !== 'Enviada a Reclutamiento') {
         showMessage('Como inspector, solo puedes enviar solicitudes a Reclutamiento.', 'info');
         return;
       }
-      // Y solo puede moverlas si están en Pendiente
       if (request.status !== 'Pendiente') {
         showMessage('Esta solicitud ya está siendo gestionada por Reclutamiento.', 'warning');
         return;
@@ -183,12 +187,10 @@ export default function StaffingRequestsPage() {
     }
 
     if (isRecruiter) {
-      // Reclutador no puede devolver a Pendiente
       if (overContainer === 'Pendiente') {
         showMessage('No puedes devolver una solicitud a estado Pendiente.', 'error');
         return;
       }
-      // Reclutador solo actúa si ya fue enviada
       if (request.status === 'Pendiente') {
         showMessage('Debes esperar a que el inspector envíe la solicitud a Reclutamiento.', 'info');
         return;
@@ -218,7 +220,7 @@ export default function StaffingRequestsPage() {
           p: 3, 
           mb: 3, 
           borderRadius: 3, 
-          background: 'linear-gradient(135deg, rgba(255, 87, 34, 0.05) 0%, rgba(255, 255, 255, 0.02) 100%)',
+          background: 'linear-gradient(135deg, rgba(255, 87, 34, 0.05) 0%, rgba(255, 255, 255, 0) 100%)',
           border: '1px solid rgba(255, 87, 34, 0.1)',
           display: 'flex', 
           justifyContent: 'space-between', 
@@ -329,21 +331,29 @@ export default function StaffingRequestsPage() {
               </Grid>
               
               <Grid item xs={12} sm={4} md={3}>
-                <FormControl fullWidth size="small">
-                  <InputLabel>Filtrar por Zona</InputLabel>
-                  <Select 
-                    value={zoneFilter} 
-                    label="Filtrar por Zona" 
-                    onChange={(e) => { setZoneFilter(e.target.value as any); setHotelFilter('all'); }}
-                    startAdornment={<InputAdornment position="start"><MapIcon fontSize="small" color="primary" /></InputAdornment>}
-                    sx={{ borderRadius: 2 }}
-                  >
-                    <MenuItem value="Todas">Todas las Zonas</MenuItem>
-                    <MenuItem value="Centro">Centro</MenuItem>
-                    <MenuItem value="Norte">Norte</MenuItem>
-                    <MenuItem value="Noroeste">Noroeste</MenuItem>
-                  </Select>
-                </FormControl>
+                <Tooltip title={isInspector ? `Acceso restringido a: ${profile?.assigned_zone || 'Centro'}` : "Filtrar por zona"}>
+                  <FormControl fullWidth size="small">
+                    <InputLabel>Filtrar por Zona</InputLabel>
+                    <Select 
+                      value={zoneFilter} 
+                      label="Filtrar por Zona" 
+                      onChange={(e) => { 
+                        if (!isInspector) {
+                          setZoneFilter(e.target.value as any); 
+                          setHotelFilter('all'); 
+                        }
+                      }}
+                      disabled={isInspector}
+                      startAdornment={<InputAdornment position="start"><MapIcon fontSize="small" color={isInspector ? "warning" : "primary"} /></InputAdornment>}
+                      sx={{ borderRadius: 2, bgcolor: isInspector ? 'rgba(255, 87, 34, 0.05)' : 'transparent' }}
+                    >
+                      <MenuItem value="Todas">Todas las Zonas</MenuItem>
+                      <MenuItem value="Centro">Centro</MenuItem>
+                      <MenuItem value="Norte">Norte</MenuItem>
+                      <MenuItem value="Noroeste">Noroeste</MenuItem>
+                    </Select>
+                  </FormControl>
+                </Tooltip>
               </Grid>
 
               <Grid item xs={12} sm={4} md={3}>
@@ -357,7 +367,10 @@ export default function StaffingRequestsPage() {
                     sx={{ borderRadius: 2 }}
                   >
                     <MenuItem value="all">Todos los Hoteles</MenuItem>
-                    {hotels.filter(h => zoneFilter === 'Todas' || h.zone === zoneFilter).map(hotel => (
+                    {hotels.filter(h => {
+                      const activeZone = isInspector ? (profile?.assigned_zone || 'Centro') : zoneFilter;
+                      return activeZone === 'Todas' || h.zone === activeZone;
+                    }).map(hotel => (
                       <MenuItem key={hotel.id} value={hotel.id}>{hotel.name}</MenuItem>
                     ))}
                   </Select>
@@ -395,7 +408,7 @@ export default function StaffingRequestsPage() {
                     bgColor={statusColors[status].bg} 
                     textColor={statusColors[status].text} 
                     onEditRequest={handleOpenDialog} 
-                    onArchiveRequest={archiveRequest} // Conexión activada
+                    onArchiveRequest={archiveRequest}
                     onDeleteRequest={profile?.role === 'ADMIN' ? handleDeleteRequest : undefined}
                   />
                 </Grid>
@@ -415,7 +428,7 @@ export default function StaffingRequestsPage() {
         autoHideDuration={4000} 
         onClose={() => setSnackbar({ ...snackbar, open: false })}
         anchorOrigin={{ vertical: 'top', horizontal: 'right' }}
-        sx={{ mt: 7 }} // Un poco de margen para que no tape el AppBar
+        sx={{ mt: 7 }}
       >
         <Alert 
           onClose={() => setSnackbar({ ...snackbar, open: false })} 
