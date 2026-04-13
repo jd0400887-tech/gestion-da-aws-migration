@@ -4,7 +4,7 @@ import type { Employee } from '../types';
 
 /**
  * SERVICIO PROFESIONAL DE EMPLEADOS (AWS RDS)
- * Conectado directamente a PostgreSQL en Virginia.
+ * Sincronizado con esquema original PostgreSQL (snake_case).
  */
 export const employeeService = {
   getClient() {
@@ -15,23 +15,35 @@ export const employeeService = {
     try {
       const client = this.getClient();
       console.info('📡 [AWS] Consultando empleados en RDS PostgreSQL...');
-      const { data: employees } = await client.models.Employee.list();
+      const { data: employees, errors } = await client.models.Employee.list();
+      
+      if (errors) {
+        console.warn('⚠️ [AWS] Avisos al listar empleados:', errors);
+      }
+
+      if (!employees || employees.length === 0) {
+        console.info('ℹ️ [AWS] No se encontraron empleados en la base de datos.');
+        return [];
+      }
+
+      console.info(`✅ [AWS] Se recuperaron ${employees.length} empleados.`);
       
       return employees.map(emp => ({
         id: emp.id,
-        employeeNumber: emp.employee_number,
+        employeeNumber: emp.employee_number || 'N/A',
         name: emp.name,
         hotelId: emp.current_hotel_id || '',
         role: emp.role,
         isActive: emp.is_active ?? true,
-        employeeType: (emp.employee_type as 'permanente' | 'temporal') || 'permanente',
+        employeeType: (emp.employee_type as any) || 'permanente',
         phone: emp.phone || '',
         email: emp.email || '',
         isBlacklisted: emp.is_blacklisted ?? false,
         blacklistReason: emp.blacklist_reason || '',
-        payrollType: (emp.payroll_type as 'timesheet' | 'Workrecord') || 'timesheet',
+        payrollType: (emp.payroll_type as any) || 'timesheet',
         documentacion_completa: emp.documentacion_completa ?? true,
         lastReviewedTimestamp: emp.last_reviewed_timestamp || null,
+        image_url: emp.image_url || null
       }));
     } catch (error: any) {
       if (error.message?.includes('No current user')) return [];
@@ -53,7 +65,7 @@ export const employeeService = {
         employee_number: finalNumber,
         name: employee.name || 'Sin Nombre',
         role: employee.role || 'Sin Cargo',
-        current_hotel_id: employee.hotelId,
+        current_hotel_id: employee.hotelId || '',
         is_active: employee.isActive ?? true,
         employee_type: employee.employeeType || 'permanente',
         phone: employee.phone,

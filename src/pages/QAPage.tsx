@@ -51,15 +51,30 @@ export default function QAPage() {
       const { data } = await client.models.QAAudit.list();
       
       const enrichedAudits = data.map(audit => {
-        const hotel = hotels.find(h => h.id === audit.hotel_id);
-        const employee = audit.employee_id ? employees.find(e => e.id === audit.employee_id) : null;
+        // Mapeo inteligente para soportar ambos estilos de esquema
+        const a = audit as any;
+        const hId = a.hotelId || a.hotel_id;
+        const eId = a.employeeId || a.employee_id;
+        const type = a.auditType || a.audit_type;
+        const date = a.auditDate || a.audit_date;
+        const results = a.checklistResults || a.checklist_results;
+        const name = a.auditorName || a.auditor_name;
+
+        const hotel = hotels.find(h => h.id === hId);
+        const employee = eId ? employees.find(e => e.id === eId) : null;
         
         return {
-          ...audit,
+          ...a,
+          id: a.id,
+          audit_type: type,
+          audit_date: date,
+          score: a.score,
+          checklist_results: results,
+          auditor_name: name,
           hotelName: hotel?.name || 'N/A',
-          inspectorName: audit.auditor_name || 'Inspector',
-          targetName: audit.audit_type === 'staff' ? (employee?.name || 'Empleado') : (hotel?.name || 'Hotel'),
-          targetType: audit.audit_type
+          inspectorName: name || 'Inspector',
+          targetName: type === 'staff' ? (employee?.name || 'Empleado') : (hotel?.name || 'Hotel'),
+          targetType: type
         };
       }).sort((a, b) => new Date(b.audit_date).getTime() - new Date(a.audit_date).getTime());
 
@@ -72,8 +87,12 @@ export default function QAPage() {
   };
 
   useEffect(() => {
-    if (profile && hotels.length > 0 && employees.length > 0) fetchAudits();
-  }, [profile, hotels, employees]);
+    // Si el perfil está cargado y ya tenemos respuesta de hoteles (aunque sea vacía)
+    // intentamos cargar las auditorías para no bloquear la pantalla.
+    if (profile) {
+      fetchAudits();
+    }
+  }, [profile, hotels, employees]); // Mantenemos dependencias para refrescar si llegan datos
 
   // LÓGICA DE COBERTURA (Control Mensual)
   const coverageStats = useMemo(() => {
@@ -86,8 +105,8 @@ export default function QAPage() {
 
     const auditedIds = new Set(
       audits
-        .filter(a => a.audit_type === 'staff' && a.audit_date.startsWith(currentMonth))
-        .map(a => a.employee_id)
+        .filter(a => a.audit_type === 'staff' && (a.audit_date || '').startsWith(currentMonth))
+        .map(a => a.employeeId || a.employee_id)
     );
 
     const pending = targetEmployees.filter(e => !auditedIds.has(e.id) && e.isActive && !e.isBlacklisted);
@@ -133,15 +152,15 @@ export default function QAPage() {
       }
 
       await client.models.QAAudit.create({
-        audit_type: auditData.type,
-        hotel_id: hotelId,
-        employee_id: employeeId,
-        room_number: auditData.room_number || null,
-        auditor_name: profile?.name || user?.username || 'Anónimo',
+        auditType: auditData.type,
+        hotelId: hotelId,
+        employeeId: employeeId,
+        roomNumber: auditData.room_number || null,
+        auditorName: profile?.name || user?.username || 'Anónimo',
         score: auditData.score,
-        audit_date: new Date().toISOString().split('T')[0],
+        auditDate: new Date().toISOString().split('T')[0],
         observations: auditData.notes,
-        checklist_results: JSON.stringify(auditData.answers)
+        checklistResults: JSON.stringify(auditData.answers)
       });
 
       setSnackbar({ open: true, message: 'Auditoría guardada correctamente', severity: 'success' });
@@ -270,7 +289,7 @@ export default function QAPage() {
                         </ListItemAvatar>
                         <ListItemText 
                           primary={audit.targetName} 
-                          secondary={`${new Date(audit.audit_date).toLocaleDateString()} • Por: ${audit.inspectorName} ${audit.room_number ? '• Hab: ' + audit.room_number : ''}`} 
+                          secondary={`${new Date(audit.audit_date).toLocaleDateString()} • Por: ${audit.inspectorName} ${audit.roomNumber ? '• Hab: ' + audit.roomNumber : ''}`} 
                           primaryTypographyProps={{ fontWeight: 'bold' }} 
                         />
                         <Box sx={{ textAlign: 'right' }}>

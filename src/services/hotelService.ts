@@ -4,7 +4,7 @@ import type { Hotel } from '../types';
 
 /**
  * SERVICIO PROFESIONAL DE HOTELES (AWS RDS)
- * Conectado directamente a PostgreSQL en Virginia.
+ * Sincronizado con esquema original PostgreSQL (snake_case).
  */
 export const hotelService = {
   getClient() {
@@ -17,7 +17,7 @@ export const hotelService = {
       console.info('📡 [AWS] Consultando hoteles en RDS PostgreSQL...');
       const { data: hotels } = await client.models.Hotel.list();
       
-      return hotels.map(h => ({
+      return (hotels || []).map(h => ({
         id: h.id,
         hotelCode: h.hotel_code || 'S/C',
         name: h.name,
@@ -29,7 +29,7 @@ export const hotelService = {
         latitude: h.latitude || null,
         longitude: h.longitude || null,
         imageUrl: h.image_url || null,
-        zone: (h.zone as 'Centro' | 'Norte' | 'Noroeste') || 'Centro'
+        zone: (h.zone as any) || 'Centro'
       }));
     } catch (error: any) {
       if (error.message?.includes('No current user')) return [];
@@ -42,7 +42,6 @@ export const hotelService = {
     try {
       const client = this.getClient();
       
-      // Lógica de Generación de Código Operativo (Ej: HOT26-123)
       const year = new Date().getFullYear().toString().slice(-2);
       const random = Math.floor(Math.random() * 1000).toString().padStart(3, '0');
       const generatedCode = `HOT${year}-${random}`;
@@ -51,13 +50,13 @@ export const hotelService = {
         hotel_code: generatedCode,
         name: hotel.name || 'Nuevo Hotel',
         city: hotel.city || 'Ciudad',
-        address: hotel.address,
-        manager_name: hotel.managerName,
-        phone: hotel.phone,
-        email: hotel.email,
+        address: hotel.address || '',
+        manager_name: hotel.managerName || '',
+        phone: hotel.phone || '',
+        email: hotel.email || '',
         latitude: hotel.latitude,
         longitude: hotel.longitude,
-        image_url: hotel.imageUrl,
+        image_url: hotel.imageUrl || null,
         zone: hotel.zone || 'Centro'
       });
     } catch (error) {

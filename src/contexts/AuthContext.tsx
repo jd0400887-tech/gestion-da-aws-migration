@@ -41,14 +41,20 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         can_view_reports: true,
         can_view_adoption: true
       });
-      return;
+      // NO RETORNAMOS AQUÍ. Dejamos que intente cargar el perfil real para verificar permisos.
     }
 
     try {
       const client = generateClient<Schema>();
-      const { data: profiles } = await client.models.Profile.list({
+      console.info('📡 [AWS Auth] Intentando recuperar perfil de base de datos para:', userEmail);
+      
+      const { data: profiles, errors } = await client.models.Profile.list({
         filter: { email: { eq: userEmail } }
       });
+
+      if (errors) {
+        console.warn('⚠️ [AWS Auth] Error de permisos al leer perfil (Unauthorized?):', errors);
+      }
 
       if (profiles && profiles.length > 0) {
         const p = profiles[0];

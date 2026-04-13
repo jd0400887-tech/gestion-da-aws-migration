@@ -25,18 +25,18 @@ export const useStaffingRequests = () => {
       const { data: allApplications } = await client.models.Application.list();
 
       const enrichedData = requestsData.map(req => {
-        // 1. Contador de Candidatos
-        const count = allApplications.filter(app => 
-          String(app.request_id) === String(req.id) && 
-          app.status !== 'Eliminado'
-        ).length;
+        // 1. Contador de Candidatos (Mapeo inteligente para requestId)
+        const count = allApplications.filter(app => {
+          const a = app as any;
+          const reqId = a.requestId || a.request_id || a.hotelId; // Fallback extremo
+          return String(reqId) === String(req.id) && app.status !== 'Eliminado';
+        }).length;
 
         // 2. Lógica de SLA (72 Horas para resolución)
         const creationDate = new Date(req.created_at);
         const now = new Date();
         const diffHours = (now.getTime() - creationDate.getTime()) / (1000 * 60 * 60);
         
-        // Si tiene más de 72h y no está completada/cancelada/archivada, es 'Vencida'
         let currentStatus = req.status;
         const activeStatuses = ['Pendiente', 'Enviada a Reclutamiento', 'En Proceso', 'Completada Parcialmente'];
         if (diffHours > 72 && activeStatuses.includes(req.status)) {

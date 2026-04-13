@@ -4,7 +4,7 @@ import type { StaffingRequest } from '../types';
 
 /**
  * SERVICIO PROFESIONAL DE SOLICITUDES (AWS RDS)
- * Conectado a PostgreSQL en AWS Cloud.
+ * Sincronizado con esquema original PostgreSQL (snake_case).
  */
 export const staffingService = {
   getClient() {
@@ -20,9 +20,8 @@ export const staffingService = {
         console.warn('⚠️ [AWS] Avisos al listar solicitudes:', errors);
       }
 
-      // Validar y limpiar cada solicitud para evitar crashes
       return (requests || [])
-        .filter(r => r && r.id) // Ignorar registros corruptos
+        .filter(r => r && r.id)
         .map(r => ({
           id: String(r.id),
           request_number: r.request_number || 'SR-N/A',
@@ -69,13 +68,10 @@ export const staffingService = {
       });
 
       if (errors || !newReq) {
-        console.error('Detalle de error AWS:', errors);
-        throw new Error("AWS rechazó la creación de la solicitud.");
+        throw new Error("AWS rechazó la creación.");
       }
 
-      // REGISTRAR HISTORIAL INICIAL
-      await this.addHistory(newReq.id, `Solicitud creada en estado Pendiente vía ${userName}`, userName);
-
+      await this.addHistory(newReq.id, `Solicitud creada en estado Pendiente`, userName);
       return newReq.id;
     } catch (error: any) {
       console.error('❌ Error crítico en creación:', error.message);
@@ -107,14 +103,10 @@ export const staffingService = {
       if (updates.shift_time !== undefined) input.shift_time = updates.shift_time || '';
 
       const { errors } = await client.models.StaffingRequest.update(input);
-      if (errors) {
-        console.error('Detalle de error AWS Update:', errors);
-        throw new Error("AWS rechazó la actualización.");
-      }
+      if (errors) throw new Error("AWS rechazó la actualización.");
 
       if (changeLog.length > 0) {
-        const fullDescription = changeLog.join(" | ");
-        await this.addHistory(id, fullDescription, userName);
+        await this.addHistory(id, changeLog.join(" | "), userName);
       }
     } catch (error: any) {
       console.error('❌ Error crítico en actualización:', error.message);
