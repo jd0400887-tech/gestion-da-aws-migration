@@ -41,7 +41,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         can_view_reports: true,
         can_view_adoption: true
       });
-      // NO RETORNAMOS AQUÍ. Dejamos que intente cargar el perfil real para verificar permisos.
+      setLoading(false); // Detenemos la carga
+      return; // RESTAURAMOS EL RETURN PREMATURO
     }
 
     try {
