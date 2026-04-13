@@ -103,12 +103,7 @@ export const handler: Handler = async (event) => {
       }
 
       if (data.startsWith('d_')) {
-        const parts = data.split('_');
-        const posId = parts[1];
-        const qty = parts[2];
-        const type = parts[3];
-        const date = parts[4];
-        
+        const [_, posId, qty, type, date] = data.split('_');
         await telegram(token, 'sendMessage', {
           chat_id: chatId,
           text: `🕒 **Step 5/5**: Select the start time:\n\n📅 Date: ${date}`,
@@ -116,19 +111,14 @@ export const handler: Handler = async (event) => {
             [{ text: '🌅 07:00 AM', callback_data: `f_${posId}_${qty}_${type}_${date}_07:00` }, { text: '🌅 08:00 AM', callback_data: `f_${posId}_${qty}_${type}_${date}_08:00` }],
             [{ text: '☀️ 02:00 PM', callback_data: `f_${posId}_${qty}_${type}_${date}_14:00` }, { text: '☀️ 03:00 PM', callback_data: `f_${posId}_${qty}_${type}_${date}_15:00` }],
             [{ text: '🌙 10:00 PM', callback_data: `f_${posId}_${qty}_${type}_${date}_22:00` }, { text: '🌙 11:00 PM', callback_data: `f_${posId}_${qty}_${type}_${date}_23:00` }],
-            [{ text: '🕒 Other / Custom', callback_data: `f_${posId}_${qty}_${type}_${date}_Flexible` }],
+            [{ text: '🕒 Other / Custom', callback_data: `f_${posId}_${qty}_${type}_${date}_Flex` }],
             [{ text: '🟠 Cancel', callback_data: 'c' }]
           ]}
         });
       }
 
       if (data.startsWith('f_')) {
-        const parts = data.split('_');
-        const posId = parts[1];
-        const qty = parts[2];
-        const type = parts[3];
-        const date = parts[4];
-        const time = parts[5];
+        const [_, posId, qty, type, date, time] = data.split('_');
         const hotelRes = await callGraphQL(LIST_HOTELS_BY_CHAT, { chatId });
         const hotel = hotelRes.listHotels.items[0];
         const posRes = await callGraphQL(GET_POSITION, { id: posId });
@@ -143,12 +133,12 @@ export const handler: Handler = async (event) => {
           await callGraphQL(CREATE_REQUEST, { input: {
             request_number, 
             hotel_id: hotel.id, 
-            role: pos.name, // Esto ya usa el nombre oficial de la DB
+            role: pos.name, 
             num_of_people: parseInt(qty),
             request_type: type === 'temp' ? 'temporal' : 'permanente', 
             start_date: date, 
             request_date: now, 
-            shift_time: time, 
+            shift_time: time === 'Flex' ? 'Flexible' : time, 
             status: 'Enviada a Reclutamiento',
             priority: 'medium',
             is_archived: false
