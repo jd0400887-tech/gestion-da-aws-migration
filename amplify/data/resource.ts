@@ -27,7 +27,8 @@ const schema = a.schema({
   }).authorization((allow) => [
     allow.authenticated(),
     allow.owner(),
-    allow.group('ADMIN')
+    allow.group('ADMIN'),
+    allow.group('COORDINATOR')
   ]),
 
   // 2. ESTRUCTURA ORGANIZATIVA (HOTELES)
@@ -54,6 +55,8 @@ const schema = a.schema({
     payroll_reviews: a.hasMany('PayrollReview', 'hotel_id'),
   }).authorization((allow) => [
     allow.authenticated(),
+    allow.group('ADMIN'),
+    allow.group('COORDINATOR'),
     allow.publicApiKey().to(['read', 'update']),
   ]),
 
@@ -82,7 +85,11 @@ const schema = a.schema({
     attendance: a.hasMany('AttendanceRecord', 'employee_id'),
     status_history: a.hasMany('EmployeeStatusChange', 'employee_id'),
     qa_audits: a.hasMany('QAAudit', 'employee_id'),
-  }).authorization((allow) => [allow.authenticated()]),
+  }).authorization((allow) => [
+    allow.authenticated(),
+    allow.group('ADMIN'),
+    allow.group('COORDINATOR')
+  ]),
 
   EmployeeStatusChange: a.model({
     id: a.id(),
@@ -93,7 +100,11 @@ const schema = a.schema({
     reason: a.string(),
     changed_by: a.string().required(),
     change_date: a.datetime().required(),
-  }).authorization((allow) => [allow.authenticated()]),
+  }).authorization((allow) => [
+    allow.authenticated(),
+    allow.group('ADMIN'),
+    allow.group('COORDINATOR')
+  ]),
 
   // 4. RECLUTAMIENTO Y SOLICITUDES
   StaffingRequest: a.model({
@@ -114,6 +125,8 @@ const schema = a.schema({
     history: a.hasMany('StaffingRequestHistory', 'request_id'),
   }).authorization((allow) => [
     allow.authenticated(),
+    allow.group('ADMIN'),
+    allow.group('COORDINATOR'),
     allow.publicApiKey().to(['create', 'read'])
   ]),
 
@@ -124,7 +137,11 @@ const schema = a.schema({
     change_description: a.string().required(),
     changed_by: a.string().required(),
     created_at: a.datetime().required(),
-  }).authorization((allow) => [allow.authenticated()]),
+  }).authorization((allow) => [
+    allow.authenticated(),
+    allow.group('ADMIN'),
+    allow.group('COORDINATOR')
+  ]),
 
   // 4.1 APLICACIONES DE CANDIDATOS
   Application: a.model({
@@ -138,7 +155,11 @@ const schema = a.schema({
     status: a.string().default('pendiente'), 
     applied_at: a.datetime(), 
     notes: a.string(),
-  }).authorization((allow) => [allow.authenticated()]),
+  }).authorization((allow) => [
+    allow.authenticated(),
+    allow.group('ADMIN'),
+    allow.group('COORDINATOR')
+  ]),
 
   // 5. ASISTENCIA Y OPERACIONES
   AttendanceRecord: a.model({
@@ -155,7 +176,11 @@ const schema = a.schema({
     status: a.string(),
     is_gps_verified: a.boolean().default(false), 
     distance_from_hotel: a.float(), 
-  }).authorization((allow) => [allow.authenticated()]),
+  }).authorization((allow) => [
+    allow.authenticated(),
+    allow.group('ADMIN'),
+    allow.group('COORDINATOR')
+  ]),
 
   PayrollReview: a.model({
     id: a.id(),
@@ -167,7 +192,11 @@ const schema = a.schema({
     total_amount: a.float(), 
     status: a.string(),
     reviewed_by: a.string(), 
-  }).authorization((allow) => [allow.authenticated()]),
+  }).authorization((allow) => [
+    allow.authenticated(),
+    allow.group('ADMIN'),
+    allow.group('COORDINATOR')
+  ]),
 
   // 6. CALIDAD (QA)
   QAAudit: a.model({
@@ -183,7 +212,11 @@ const schema = a.schema({
     observations: a.string(),
     checklist_results: a.json(), 
     audit_date: a.date().required(), 
-  }).authorization((allow) => [allow.authenticated()]),
+  }).authorization((allow) => [
+    allow.authenticated(),
+    allow.group('ADMIN'),
+    allow.group('COORDINATOR')
+  ]),
 
   // 7. CONFIGURACIÓN
   Position: a.model({
@@ -193,6 +226,8 @@ const schema = a.schema({
     is_active: a.boolean().default(true), 
   }).authorization((allow) => [
     allow.authenticated(),
+    allow.group('ADMIN'),
+    allow.group('COORDINATOR'),
     allow.publicApiKey().to(['read']),
   ]),
 
