@@ -44,7 +44,10 @@ const candidateStatusColors: { [key: string]: string } = {
   'Asignado': 'info',
   'Confirmado': 'primary',
   'Llegó': 'success',
-  'No llegó': 'error'
+  'pendiente': 'success',
+  'No llegó': 'error',
+  'completada': 'info',
+  'empleado_creado': 'success'
 };
 
 export default function StaffingRequestDetailsDialog({ open, onClose, request }: StaffingRequestDetailsDialogProps) {

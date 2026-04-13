@@ -3,6 +3,7 @@ import { generateClient } from 'aws-amplify/api';
 import type { Schema } from '../../amplify/data/resource';
 import type { RequestCandidate } from '../types';
 import { staffingService } from '../services/staffingService';
+import { toTitleCase } from '../utils/stringUtils';
 
 /**
  * SERVICIO DE CANDIDATOS PARA SOLICITUDES (AWS RDS)
@@ -36,7 +37,7 @@ export const useRequestCandidates = (requestId: string | null, userName: string 
           return {
             id: app.id as any,
             request_id: requestId as any,
-            candidate_name: emp.name,
+            candidate_name: toTitleCase(emp.name),
             phone: emp.phone,
             status: (app.status as any) || 'Asignado',
             created_at: app.applied_at,
@@ -48,7 +49,7 @@ export const useRequestCandidates = (requestId: string | null, userName: string 
         return {
           id: app.id as any,
           request_id: requestId as any,
-          candidate_name: cand?.name || 'Candidato Desconocido',
+          candidate_name: toTitleCase(cand?.name || 'Candidato Desconocido'),
           phone: cand?.phone,
           status: (app.status as any) || 'Asignado',
           created_at: app.applied_at,
@@ -75,7 +76,9 @@ export const useRequestCandidates = (requestId: string | null, userName: string 
       setLoading(true);
       const client = generateClient<Schema>();
       let candidateId = newCandidate.existing_employee_id;
-      let nameForLog = newCandidate.candidate_name;
+      
+      // NORMALIZACIÓN AUTOMÁTICA DEL NOMBRE (Regla de Negocio OranjeApp)
+      let nameForLog = toTitleCase(newCandidate.candidate_name || 'Nuevo Candidato');
 
       // 1. Validaciones de Negocio para Empleados Existentes
       if (candidateId) {
@@ -87,14 +90,14 @@ export const useRequestCandidates = (requestId: string | null, userName: string 
           if (emp.is_blacklisted) {
             throw new Error(`BLOQUEO DE SEGURIDAD: ${emp.name} se encuentra en Lista Negra y no puede ser asignado.`);
           }
-          nameForLog = emp.name;
+          nameForLog = toTitleCase(emp.name);
         }
       }
 
       // 2. Crear Perfil de Candidato si es Externo
       if (!candidateId) {
         const { data: cand, errors: candErrors } = await client.models.Candidate.create({
-          name: newCandidate.candidate_name || 'Nuevo Candidato',
+          name: nameForLog,
           phone: newCandidate.phone || 'N/A',
           role: 'Externo',
           status: 'Activo'
@@ -111,8 +114,8 @@ export const useRequestCandidates = (requestId: string | null, userName: string 
         candidate_id: candidateId,
         request_id: String(requestId),
         hotel_id: hotelId || '', 
-        candidate_name: nameForLog, // GUARDAR NOMBRE PARA EL MÓDULO DE APLICACIONES
-        phone: newCandidate.phone || 'N/A', // GUARDAR TELÉFONO
+        candidate_name: nameForLog, // GUARDAR NOMBRE NORMALIZADO
+        phone: newCandidate.phone || 'N/A', 
         role: role || 'Sin cargo', 
         status: 'Asignado',
         applied_at: new Date().toISOString()

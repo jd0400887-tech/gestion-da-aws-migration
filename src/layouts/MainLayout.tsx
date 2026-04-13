@@ -60,19 +60,100 @@ export default function MainLayout() {
 
   const drawerContent = (
     <Box sx={{ height: '100%', display: 'flex', flexDirection: 'column', bgcolor: '#0F172A' }}>
-      <Box sx={{ minHeight: 70, display: 'flex', alignItems: 'center', px: 2, gap: 1 }}>
-        <IconButton onClick={handleDrawerToggle} sx={{ color: 'white' }}><MenuIcon /></IconButton>
-        <Typography variant="h6" sx={{ color: 'primary.main', fontWeight: 900 }}>MENÚ</Typography>
+      <Box sx={{ minHeight: 80, display: 'flex', alignItems: 'center', px: 2, position: 'relative' }}>
+        <IconButton 
+          onClick={handleDrawerToggle} 
+          sx={{ 
+            color: 'rgba(255,255,255,0.3)', 
+            position: 'absolute', 
+            left: 8,
+            '&:hover': { color: 'primary.main', bgcolor: 'rgba(255, 87, 34, 0.1)' } 
+          }}
+        >
+          <MenuIcon />
+        </IconButton>
+        <Typography 
+          variant="h4" 
+          sx={{ 
+            flexGrow: 1,
+            fontWeight: 900, 
+            background: 'linear-gradient(45deg, #FF5722 30%, #FF8A65 90%)',
+            WebkitBackgroundClip: 'text',
+            WebkitTextFillColor: 'transparent',
+            letterSpacing: '-2.5px',
+            fontFamily: '"Inter", "Montserrat", sans-serif',
+            textTransform: 'none',
+            lineHeight: 1,
+            textAlign: 'center',
+            ml: 2 // Espacio para equilibrar el botón de la izquierda
+          }}
+        >
+          Oranje
+        </Typography>
       </Box>
       <Divider sx={{ bgcolor: 'rgba(255,255,255,0.05)', mb: 2 }} />
-      <Box sx={{ px: 2, mb: 3 }}>
-        <Paper sx={{ p: 2, borderRadius: 3, bgcolor: 'rgba(255,255,255,0.03)', display: 'flex', alignItems: 'center', gap: 2 }}>
-          <Avatar sx={{ bgcolor: 'primary.main', fontWeight: 'bold' }}>{profile?.role?.[0] || 'U'}</Avatar>
-          <Box sx={{ overflow: 'hidden' }}>
-            <Typography variant="caption" sx={{ color: 'primary.main', fontWeight: 'bold', display: 'block' }}>{profile?.role}</Typography>
-            <Typography variant="body2" noWrap sx={{ color: 'white', fontWeight: 600 }}>{profile?.email?.split('@')[0]}</Typography>
-          </Box>
-        </Paper>
+      <Box sx={{ px: 3, mb: 4, display: 'flex', alignItems: 'center', gap: 2 }}>
+        <Badge 
+          overlap="circular" 
+          anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
+          variant="dot"
+          sx={{ 
+            '& .MuiBadge-badge': { 
+              bgcolor: '#4caf50', 
+              color: '#4caf50', 
+              boxShadow: '0 0 0 2px #0F172A',
+              '&::after': {
+                position: 'absolute', top: 0, left: 0, width: '100%', height: '100%',
+                borderRadius: '50%', animation: 'ripple 1.2s infinite ease-in-out',
+                border: '1px solid currentColor', content: '""',
+              },
+            },
+            '@keyframes ripple': {
+              '0%': { transform: 'scale(.8)', opacity: 1 },
+              '100%': { transform: 'scale(2.4)', opacity: 0 },
+            },
+          }}
+        >
+          <Avatar 
+            sx={{ 
+              background: 'linear-gradient(135deg, #FF5722 0%, #FF8A65 100%)', 
+              fontWeight: 800,
+              width: 42,
+              height: 42,
+              boxShadow: '0 4px 12px rgba(255, 87, 34, 0.4)'
+            }}
+          >
+            {profile?.name?.[0] || 'U'}
+          </Avatar>
+        </Badge>
+        <Box sx={{ overflow: 'hidden' }}>
+          <Typography 
+            variant="caption" 
+            sx={{ 
+              color: 'primary.main', 
+              fontWeight: 900, 
+              display: 'block', 
+              textTransform: 'uppercase',
+              letterSpacing: '1.5px',
+              fontSize: '0.6rem',
+              opacity: 0.8
+            }}
+          >
+            {profile?.role}
+          </Typography>
+          <Typography 
+            variant="body2" 
+            noWrap 
+            sx={{ 
+              color: 'white', 
+              fontWeight: 700,
+              fontSize: '0.9rem',
+              letterSpacing: '-0.2px'
+            }}
+          >
+            {profile?.name || profile?.email?.split('@')[0]}
+          </Typography>
+        </Box>
       </Box>
       <Box sx={{ flexGrow: 1, px: 1, overflowY: 'auto' }}>
         <List>
@@ -98,29 +179,61 @@ export default function MainLayout() {
           })}
         </List>
       </Box>
-      <Divider sx={{ bgcolor: 'rgba(255,255,255,0.05)', mt: 'auto' }} />
-      <List sx={{ px: 1, py: 2 }}>
-        <ListItem disablePadding>
-          <ListItemButton onClick={handleLogout} sx={{ borderRadius: 3, color: 'rgba(255,255,255,0.5)', '&:hover': { color: '#f44336' } }}>
-            <ListItemIcon sx={{ color: 'inherit', minWidth: 40 }}><LogoutIcon fontSize="small" /></ListItemIcon>
-            <ListItemText primary="Cerrar Sesión" primaryTypographyProps={{ fontSize: '0.85rem' }} />
-          </ListItemButton>
-        </ListItem>
-      </List>
+      <Box sx={{ p: 2, mt: 'auto' }}>
+        <Divider sx={{ bgcolor: 'rgba(255,255,255,0.05)', mb: 2 }} />
+        <ListItemButton 
+          onClick={handleLogout} 
+          sx={{ 
+            borderRadius: 3, 
+            color: 'rgba(255,255,255,0.5)',
+            transition: 'all 0.2s ease',
+            '&:hover': { 
+              bgcolor: 'rgba(244, 67, 54, 0.1)', 
+              color: '#f44336',
+              transform: 'translateX(4px)'
+            } 
+          }}
+        >
+          <ListItemIcon sx={{ color: 'inherit', minWidth: 40 }}>
+            <LogoutIcon fontSize="small" />
+          </ListItemIcon>
+          <ListItemText 
+            primary="Cerrar Sesión" 
+            primaryTypographyProps={{ 
+              fontSize: '0.85rem', 
+              fontWeight: 600 
+            }} 
+          />
+        </ListItemButton>
+      </Box>
     </Box>
   );
 
   return (
     <Box sx={{ display: 'flex', minHeight: '100vh', bgcolor: theme.palette.background.default }}>
       <AppBar position="fixed" sx={{ zIndex: (theme) => theme.zIndex.drawer - 1, backgroundColor: isLight ? 'rgba(255, 255, 255, 0.8)' : 'rgba(30, 30, 30, 0.8)', backdropFilter: 'blur(12px)', color: isLight ? '#0F172A' : '#FFFFFF', left: 0, width: '100%' }}>
-        <Toolbar sx={{ justifyContent: 'space-between', minHeight: 70 }}>
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-            <IconButton color="inherit" edge="start" onClick={handleDrawerToggle} sx={{ mr: 1 }}><MenuIcon /></IconButton>
-            <Box>
-              <Typography variant="h6" sx={{ fontWeight: 800, color: 'primary.main', lineHeight: 1.2 }}>Hola, {profile?.name || 'Usuario'}</Typography>
-              <Typography variant="caption" sx={{ fontWeight: 600, textTransform: 'uppercase' }}>Sistema de Gestión DA</Typography>
-            </Box>
+        <Toolbar sx={{ justifyContent: 'space-between', minHeight: 70, position: 'relative' }}>
+          <Box sx={{ display: 'flex', alignItems: 'center' }}>
+            <IconButton color="inherit" edge="start" onClick={handleDrawerToggle} sx={{ mr: 1, '&:hover': { color: 'primary.main', bgcolor: 'rgba(255, 87, 34, 0.1)' } }}>
+              <MenuIcon />
+            </IconButton>
           </Box>
+
+          <Box sx={{ 
+            position: 'absolute', 
+            left: '50%', 
+            transform: 'translateX(-50%)',
+            textAlign: 'center',
+            display: { xs: 'none', sm: 'block' } 
+          }}>
+            <Typography variant="h5" sx={{ fontWeight: 400, color: 'text.secondary', lineHeight: 1, letterSpacing: '-0.5px' }}>
+              Bienvenido, <Box component="span" sx={{ fontWeight: 900, color: 'primary.main' }}>{profile?.name || 'Usuario'}</Box>
+            </Typography>
+            <Typography variant="caption" sx={{ fontWeight: 800, color: 'text.disabled', textTransform: 'uppercase', letterSpacing: '2px', mt: 0.5, display: 'block' }}>
+              SISTEMA DE GESTIÓN ORANJE
+            </Typography>
+          </Box>
+
           <IconButton onClick={(e) => setAnchorEl(e.currentTarget)} sx={{ color: 'primary.main' }}>
             <Badge badgeContent={dashboardStats?.unfulfilledRequestsCount || 0} color="error"><NotificationsIcon fontSize="small" /></Badge>
           </IconButton>

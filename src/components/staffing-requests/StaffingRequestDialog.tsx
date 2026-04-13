@@ -484,11 +484,13 @@ export default function StaffingRequestDialog({ open, onClose, onSubmit, initial
                       </Typography>
                     </Box>
                     <FormControl size="small" sx={{ minWidth: 110 }}>
-                      <Select value={candidate.status === 'pendiente' ? 'pendiente' : candidate.status} onChange={(e) => handleUpdateCandidateStatus(candidate.id, e.target.value as any)} sx={{ height: 30, fontSize: '0.7rem', fontWeight: 800 }}>
+                      <Select value={candidate.status} onChange={(e) => handleUpdateCandidateStatus(candidate.id, e.target.value as any)} sx={{ height: 30, fontSize: '0.7rem', fontWeight: 800 }}>
                         <MenuItem value="Asignado">Asignado</MenuItem>
                         <MenuItem value="Confirmado">Confirmado</MenuItem>
                         <MenuItem value="pendiente">Llegó</MenuItem>
                         <MenuItem value="No llegó">No llegó</MenuItem>
+                        <MenuItem value="completada">Validado</MenuItem>
+                        <MenuItem value="empleado_creado">Contratado</MenuItem>
                       </Select>
                     </FormControl>
                     <IconButton size="small" color="error" onClick={() => handleDeleteCandidate(String(candidate.id))}><DeleteOutlineIcon fontSize="small" /></IconButton>
