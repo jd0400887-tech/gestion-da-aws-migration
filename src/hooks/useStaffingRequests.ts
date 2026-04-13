@@ -61,10 +61,36 @@ export const useStaffingRequests = () => {
   }, []);
 
   useEffect(() => {
-    if (isInitialMount.current) {
-      fetchRequests();
-      isInitialMount.current = false;
-    }
+    // 1. Carga inicial
+    fetchRequests();
+
+    // 2. SUSCRIPCIONES EN TIEMPO REAL (Professional Real-time UI)
+    const client = generateClient<Schema>();
+    
+    // Escuchar nuevas solicitudes (Bot de Telegram o Web)
+    const createSub = client.models.StaffingRequest.onCreate().subscribe({
+      next: () => fetchRequests(),
+      error: (error) => console.warn('Error en suscripción onCreate:', error)
+    });
+
+    // Escuchar actualizaciones (Cambios de estado, asignaciones)
+    const updateSub = client.models.StaffingRequest.onUpdate().subscribe({
+      next: () => fetchRequests(),
+      error: (error) => console.warn('Error en suscripción onUpdate:', error)
+    });
+
+    // Escuchar eliminaciones
+    const deleteSub = client.models.StaffingRequest.onDelete().subscribe({
+      next: () => fetchRequests(),
+      error: (error) => console.warn('Error en suscripción onDelete:', error)
+    });
+
+    // Limpieza al desmontar el componente
+    return () => {
+      createSub.unsubscribe();
+      updateSub.unsubscribe();
+      deleteSub.unsubscribe();
+    };
   }, [fetchRequests]);
 
   const fetchHistory = useCallback(async (requestId: string) => {
