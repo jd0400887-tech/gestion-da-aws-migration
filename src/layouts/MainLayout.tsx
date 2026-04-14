@@ -33,7 +33,7 @@ export default function MainLayout() {
   const theme = useTheme();
   const isLight = theme.palette.mode === 'light';
   
-  const [open, setOpen] = useState(true);
+  const [open, setOpen] = useState(false);
   const [isHovered, setIsHovered] = useState(false);
   const [anchorEl, setAnchorEl] = useState<HTMLButtonElement | null>(null);
   const { signOut, profile } = useAuth();

@@ -15,17 +15,19 @@ export interface DateRange {
 export function useAttendance(dateRange: DateRange, selectedHotelId?: string) {
   const [attendanceRecords, setAttendanceRecords] = useState<AttendanceRecord[]>([]);
   const { hotels, loading: hotelsLoading } = useHotels();
-  const { user } = useAuth();
+  const { user, profile } = useAuth();
 
   const fetchAttendanceRecords = async () => {
     try {
       const client = generateClient<Schema>();
+      // Listamos todos los registros. En producción con miles de datos, 
+      // aquí deberíamos filtrar por fecha en la consulta de AppSync.
       const { data } = await client.models.AttendanceRecord.list();
       setAttendanceRecords(data.map(r => ({
         id: r.id,
         hotelId: r.hotel_id,
         employeeId: r.employee_id,
-        timestamp: r.check_in || r.date || new Date().toISOString(), // Fallback a otros campos
+        timestamp: r.check_in || r.date || new Date().toISOString(),
         latitude: r.latitude || undefined,
         longitude: r.longitude || undefined,
         isGpsVerified: r.is_gps_verified || false,
@@ -39,6 +41,56 @@ export function useAttendance(dateRange: DateRange, selectedHotelId?: string) {
   useEffect(() => {
     fetchAttendanceRecords();
   }, []);
+
+  // 1. Filtrado por ZONA (Seguridad de visualización)
+  const zoneFilteredRecords = useMemo(() => {
+    let records = attendanceRecords;
+
+    // Si es INSPECTOR, solo ve los de su zona
+    if (profile?.role === 'INSPECTOR' && profile.assigned_zone) {
+      records = records.filter(record => {
+        const hotel = hotels.find(h => h.id === record.hotelId);
+        return hotel?.zone === profile.assigned_zone;
+      });
+    }
+    // ADMIN y COORDINATOR ven todos (no filtramos más por zona)
+
+    return records;
+  }, [attendanceRecords, hotels, profile]);
+
+  // 2. Filtrado por UI (Fecha y Hotel seleccionado)
+  const filteredRecords = useMemo(() => {
+    let result = zoneFilteredRecords;
+
+    if (selectedHotelId) {
+      result = result.filter(r => r.hotelId === selectedHotelId);
+    }
+
+    if (dateRange.start && dateRange.end) {
+      const start = startOfDay(dateRange.start);
+      const end = endOfDay(dateRange.end);
+      result = result.filter(r => {
+        const d = new Date(r.timestamp);
+        return d >= start && d <= end;
+      });
+    }
+
+    return result;
+  }, [zoneFilteredRecords, selectedHotelId, dateRange]);
+
+  // 3. Agrupación para el reporte (Formato que espera AttendanceGroupedList)
+  const visitsByHotel = useMemo(() => {
+    const counts: Record<string, number> = {};
+    filteredRecords.forEach(r => {
+      counts[r.hotelId] = (counts[r.hotelId] || 0) + 1;
+    });
+
+    return Object.entries(counts).map(([hotelId, count]) => ({
+      hotel: hotels.find(h => h.id === hotelId),
+      count: count
+    })).filter(item => item.hotel !== undefined) // Solo si el hotel existe
+    .sort((a, b) => b.count - a.count);
+  }, [filteredRecords, hotels]);
 
   const addRecord = useCallback(async (lat: number, lng: number) => {
     if (!user) throw new Error("No se pudo identificar al usuario.");
@@ -107,35 +159,6 @@ export function useAttendance(dateRange: DateRange, selectedHotelId?: string) {
       throw new Error('No se pudo registrar la visita.');
     }
   }, [user, hotels, attendanceRecords]);
-
-  // Derived state
-  const filteredRecords = useMemo(() => {
-    let result = attendanceRecords;
-    if (selectedHotelId) {
-      result = result.filter(r => r.hotelId === selectedHotelId);
-    }
-    if (dateRange.start && dateRange.end) {
-      const start = startOfDay(dateRange.start);
-      const end = endOfDay(dateRange.end);
-      result = result.filter(r => {
-        const d = new Date(r.timestamp);
-        return d >= start && d <= end;
-      });
-    }
-    return result;
-  }, [attendanceRecords, selectedHotelId, dateRange]);
-
-  const visitsByHotel = useMemo(() => {
-    const counts: Record<string, number> = {};
-    filteredRecords.forEach(r => {
-      counts[r.hotelId] = (counts[r.hotelId] || 0) + 1;
-    });
-    return Object.entries(counts).map(([hotelId, count]) => ({
-      hotelId,
-      hotelName: hotels.find(h => h.id === hotelId)?.name || 'Desconocido',
-      visits: count
-    })).sort((a, b) => b.visits - a.visits);
-  }, [filteredRecords, hotels]);
 
   const deleteRecord = async (id: string) => {
     try {

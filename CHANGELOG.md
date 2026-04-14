@@ -2,6 +2,13 @@
 
 Todos los cambios notables en este proyecto serán documentados en este archivo.
 
+## [0.9.1] - 2026-04-14 (Sesión 11 - PWA Brand Refresh: De DA a OranjeApp)
+
+### Cambiado
+- **Identidad Visual PWA:** Actualización de los iconos de la aplicación de "DA" a **"OJ"** para reflejar la marca **OranjeApp**.
+- **Paleta de Colores Corporativa:** Implementación del color **Orange Energy (#FF5722)** sobre fondo **Deep Slate (#0F172A)** en los iconos y el color de tema (theme_color) del manifiesto.
+- **Metadatos de Aplicación:** Cambio del nombre oficial de la PWA de "Gestion DA PWA" a **"OranjeApp"** en la configuración de Vite.
+
 ## [0.9.0] - 2026-04-13 (Sesión 10 - Oranje Premium Experience: Renovación Visual & UX)
 
 ### Añadido

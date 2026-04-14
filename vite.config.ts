@@ -14,11 +14,11 @@ export default defineConfig({
         maximumFileSizeToCacheInBytes: 5 * 1024 * 1024,
       },
       manifest: {
-        name: 'Gestion DA PWA',
-        short_name: 'GestionDA',
+        name: 'OranjeApp',
+        short_name: 'OranjeApp',
         description: 'Aplicación para la gestión de personal de hoteles.',
-        theme_color: '#ff9800',
-        background_color: '#212121',
+        theme_color: '#FF5722',
+        background_color: '#0F172A',
         icons: [
           {
             src: 'pwa-192x192.svg',
