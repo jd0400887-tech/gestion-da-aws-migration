@@ -24,6 +24,7 @@ import { useDashboardStats } from '../hooks/useDashboardStats';
 import { useAttendance } from '../hooks/useAttendance';
 import { generateClient } from 'aws-amplify/api';
 import type { Schema } from '../../amplify/data/resource';
+import { importMasterData } from '../services/importService';
 
 // Lazy load components
 const LazyMapContainer = lazy(() => import('react-leaflet').then(module => ({ default: module.MapContainer })));
@@ -51,6 +52,7 @@ function DashboardPage() {
   const { profile } = useAuth();
   const [selectedZone, setSelectedZone] = useState<'Todas' | 'Centro' | 'Norte' | 'Noroeste'>('Todas');
   const [qaScore, setQaScore] = useState<number | null>(null);
+  const [isImporting, setIsImporting] = useState(false);
 
   // Inicializar zona según el perfil del usuario
   useEffect(() => {
@@ -62,25 +64,18 @@ function DashboardPage() {
   const { hotels } = useHotels();
   const { addRecord } = useAttendance({ start: null, end: null });
   
-  // Memoize el filtro para evitar re-renderizados innecesarios del hook
   const statsFilter = useMemo(() => ({ zone: selectedZone }), [selectedZone]);
   const { stats: globalStats, loading: statsLoading } = useDashboardStats(statsFilter);
 
-  // Cargar promedio de calidad desde AWS filtrado por zona
   useEffect(() => {
     const fetchQaScore = async () => {
       try {
         const client = generateClient<Schema>();
         const { data } = await client.models.QAAudit.list();
-        
-        // Determinar qué hoteles pertenecen a la zona seleccionada
         const zoneHotelIds = hotels
           .filter(h => selectedZone === 'Todas' || h.zone === selectedZone)
           .map(h => h.id);
-
-        // Filtrar auditorías que pertenezcan a esos hoteles
         const zoneAudits = data.filter(audit => zoneHotelIds.includes(audit.hotel_id || ''));
-
         if (zoneAudits && zoneAudits.length > 0) {
           const avg = Math.round(zoneAudits.reduce((acc, curr) => acc + curr.score, 0) / zoneAudits.length);
           setQaScore(avg);
@@ -104,136 +99,101 @@ function DashboardPage() {
   const filteredHotels = hotels.filter(h => selectedZone === 'Todas' || h.zone === selectedZone);
   const hotelsWithLocation = filteredHotels.filter(h => h.latitude != null && h.longitude != null);
   
-  // CENTRO DEL MAPA DINÁMICO: Centrar en el primer hotel con ubicación, o en un punto central por defecto
   const mapCenter = useMemo((): [number, number] => {
     if (hotelsWithLocation.length > 0) {
       return [hotelsWithLocation[0].latitude!, hotelsWithLocation[0].longitude!];
     }
-    return [20.6231, -103.3496]; // Centro de México (Guadalajara) como respaldo
+    return [33.7490, -84.3880]; // Atlanta, GA por defecto
   }, [hotelsWithLocation]);
+
+  const handleImportData = async () => {
+    if (!window.confirm('¿Deseas iniciar la carga masiva de los hoteles y empleados detectados en el PDF?')) return;
+    setIsImporting(true);
+    try {
+      const results = await importMasterData();
+      setSnackbarInfo({ 
+        open: true, 
+        message: `¡Carga exitosa! ${results.hotelsCreated} hoteles y ${results.employeesCreated} empleados inyectados.`, 
+        severity: 'success' 
+      });
+    } catch (err: any) {
+      setSnackbarInfo({ open: true, message: `Error en carga: ${err.message}`, severity: 'error' });
+    } finally {
+      setIsImporting(false);
+    }
+  };
 
   const handleCheckIn = async () => {
     setIsCheckingIn(true);
     try {
       if (!navigator.geolocation) throw new Error("Geolocalización no soportada");
-      
       navigator.geolocation.getCurrentPosition(async (position) => {
         try {
           const { latitude, longitude } = position.coords;
           const result = await addRecord(latitude, longitude);
-          
-          setSnackbarInfo({ 
-            open: true, 
-            message: `¡Visita registrada en ${result.hotelName}! Distancia: ${result.distance}m.`, 
-            severity: 'success' 
-          });
+          setSnackbarInfo({ open: true, message: `¡Visita registrada en ${result.hotelName}!`, severity: 'success' });
         } catch (err: any) {
           setSnackbarInfo({ open: true, message: err.message, severity: 'error' });
         } finally {
           setIsCheckingIn(false);
         }
       }, (error) => {
-        let msg = "Error de ubicación.";
-        if (error.code === 1) msg = "Debes permitir el acceso a tu ubicación.";
-        setSnackbarInfo({ open: true, message: msg, severity: 'error' });
+        setSnackbarInfo({ open: true, message: "Error de ubicación.", severity: 'error' });
         setIsCheckingIn(false);
-      }, { enableHighAccuracy: true });
-
+      });
     } catch (error: any) {
       setSnackbarInfo({ open: true, message: error.message, severity: 'error' });
       setIsCheckingIn(false);
     }
   };
 
-  const renderInspectorDashboard = () => {
-    const safeStats = globalStats || { totalHotels: 0, activeEmployees: 0, pendingApplications: 0 };
-
-    return (
-      <Box sx={{ p: { xs: 1, md: 3 } }}>
-        <Box sx={{ mb: 5, display: 'flex', flexDirection: 'column', gap: 1 }}>
-          <Typography variant="h4" sx={{ fontWeight: 900, color: 'primary.main', letterSpacing: '-1px' }}>Panel de Inspección</Typography>
-          <Typography variant="body1" component="div" color="text.secondary" sx={{ fontWeight: 500, display: 'flex', alignItems: 'center', gap: 1 }}>
-            Control y gestión de la zona <Chip label={selectedZone} size="small" color="primary" sx={{ fontWeight: 'bold' }} />
-          </Typography>
-        </Box>
-        
-        <Grid container spacing={3} sx={{ mb: 5 }}>
-          <Grid item xs={12} sm={6} md={3}>
-            <Paper onClick={() => navigate('/hoteles')} sx={{ p: 3, borderRadius: 4, cursor: 'pointer', background: 'linear-gradient(135deg, rgba(255, 87, 34, 0.1) 0%, rgba(255, 255, 255, 0.05) 100%)', border: '1px solid rgba(255, 87, 34, 0.2)', transition: 'all 0.3s ease', '&:hover': { transform: 'translateY(-5px)', boxShadow: '0 8px 25px rgba(255, 87, 34, 0.2)' } }}>
-              <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <Box><Typography variant="h3" sx={{ fontWeight: 900, color: 'primary.main' }}>{safeStats.totalHotels}</Typography><Typography variant="subtitle2" color="text.secondary" sx={{ fontWeight: 'bold', textTransform: 'uppercase' }}>Hoteles</Typography></Box>
-                <Avatar sx={{ bgcolor: 'primary.main', width: 56, height: 56, boxShadow: '0 4px 12px rgba(255, 87, 34, 0.4)' }}><ApartmentIcon fontSize="large" /></Avatar>
-              </Box>
-            </Paper>
-          </Grid>
-          <Grid item xs={12} sm={6} md={3}>
-            <Paper onClick={() => navigate('/empleados')} sx={{ p: 3, borderRadius: 4, cursor: 'pointer', background: 'linear-gradient(135deg, rgba(33, 150, 243, 0.1) 0%, rgba(255, 255, 255, 0.05) 100%)', border: '1px solid rgba(33, 150, 243, 0.2)', transition: 'all 0.3s ease', '&:hover': { transform: 'translateY(-5px)', boxShadow: '0 8px 25px rgba(33, 150, 243, 0.2)' } }}>
-              <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <Box><Typography variant="h3" sx={{ fontWeight: 900, color: '#2196F3' }}>{safeStats.activeEmployees}</Typography><Typography variant="subtitle2" color="text.secondary" sx={{ fontWeight: 'bold', textTransform: 'uppercase' }}>Personal</Typography></Box>
-                <Avatar sx={{ bgcolor: '#2196F3', width: 56, height: 56, boxShadow: '0 4px 12px rgba(33, 150, 243, 0.4)' }}><PeopleIcon fontSize="large" /></Avatar>
-              </Box>
-            </Paper>
-          </Grid>
-          <Grid item xs={12} sm={6} md={3}>
-            <Paper onClick={() => navigate('/aplicaciones')} sx={{ p: 3, borderRadius: 4, cursor: 'pointer', background: 'linear-gradient(135deg, rgba(76, 175, 80, 0.1) 0%, rgba(255, 255, 255, 0.05) 100%)', border: '1px solid rgba(76, 175, 80, 0.2)', transition: 'all 0.3s ease', '&:hover': { transform: 'translateY(-5px)', boxShadow: '0 8px 25px rgba(76, 175, 80, 0.2)' } }}>
-              <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <Box><Typography variant="h3" sx={{ fontWeight: 900, color: '#4CAF50' }}>{safeStats.pendingApplications}</Typography><Typography variant="subtitle2" color="text.secondary" sx={{ fontWeight: 'bold', textTransform: 'uppercase' }}>Aplicaciones</Typography></Box>
-                <Avatar sx={{ bgcolor: '#4CAF50', width: 56, height: 56, boxShadow: '0 4px 12px rgba(76, 175, 80, 0.4)' }}><PendingActionsIcon fontSize="large" /></Avatar>
-              </Box>
-            </Paper>
-          </Grid>
-          <Grid item xs={12} sm={6} md={3}>
-            <Paper onClick={() => navigate('/calidad')} sx={{ p: 3, borderRadius: 4, cursor: 'pointer', background: 'linear-gradient(135deg, rgba(156, 39, 176, 0.1) 0%, rgba(255, 255, 255, 0.05) 100%)', border: '1px solid rgba(156, 39, 176, 0.2)', transition: 'all 0.3s ease', '&:hover': { transform: 'translateY(-5px)', boxShadow: '0 8px 25px rgba(156, 39, 176, 0.2)' } }}>
-              <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <Box><Typography variant="h3" sx={{ fontWeight: 900, color: '#9C27B0' }}>{qaScore !== null ? `${qaScore}%` : '--'}</Typography><Typography variant="subtitle2" color="text.secondary" sx={{ fontWeight: 'bold', textTransform: 'uppercase' }}>Calidad QA</Typography></Box>
-                <Avatar sx={{ bgcolor: '#9C27B0', width: 56, height: 56, boxShadow: '0 4px 12px rgba(156, 39, 176, 0.4)' }}><VerifiedUserIcon fontSize="large" /></Avatar>
-              </Box>
-            </Paper>
-          </Grid>
+  const renderInspectorDashboard = () => (
+    <Box sx={{ p: { xs: 1, md: 3 } }}>
+      <Typography variant="h4" sx={{ fontWeight: 900, color: 'primary.main', mb: 4 }}>Panel de Inspección</Typography>
+      <Grid container spacing={3} sx={{ mb: 5 }}>
+        <Grid item xs={12} sm={6} md={3}><StatCard title="Hoteles" value={globalStats.totalHotels} icon={<ApartmentIcon />} onClick={() => navigate('/hoteles')} /></Grid>
+        <Grid item xs={12} sm={6} md={3}><StatCard title="Personal" value={globalStats.activeEmployees} icon={<PeopleIcon />} onClick={() => navigate('/empleados')} /></Grid>
+        <Grid item xs={12} sm={6} md={3}><StatCard title="Aplicaciones" value={globalStats.pendingApplications} icon={<PendingActionsIcon />} onClick={() => navigate('/aplicaciones')} /></Grid>
+        <Grid item xs={12} sm={6} md={3}><StatCard title="Calidad QA" value={qaScore !== null ? `${qaScore}%` : '--'} icon={<VerifiedUserIcon />} onClick={() => navigate('/calidad')} /></Grid>
+      </Grid>
+      <Grid container spacing={4}>
+        <Grid item xs={12} md={7}>
+          <Paper sx={{ borderRadius: 4, overflow: 'hidden', height: '400px' }}>
+            <Suspense fallback={<CircularProgress />}>
+              <LazyMapContainer center={mapCenter} zoom={8} style={{ height: '100%', width: '100%' }}>
+                <LazyTileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
+                {hotelsWithLocation.map((hotel) => (
+                  <LazyMarker key={hotel.id} position={[hotel.latitude!, hotel.longitude!]}>
+                    <LazyPopup>{hotel.name}</LazyPopup>
+                  </LazyMarker>
+                ))}
+              </LazyMapContainer>
+            </Suspense>
+          </Paper>
         </Grid>
-
-        <Grid container spacing={4}>
-          <Grid item xs={12} md={5}>
-            <Typography variant="h6" sx={{ fontWeight: 800, mb: 2, px: 1 }}>Acciones Rápidas</Typography>
-            <Stack spacing={2}>
-              {[
-                { label: 'Mis Hoteles', icon: <ApartmentIcon />, color: 'primary', path: '/hoteles', desc: 'Gestionar ubicaciones asignadas' },
-                { label: 'Lista de Empleados', icon: <PeopleIcon />, color: 'info', path: '/empleados', desc: 'Ver personal activo en zona' },
-                { label: 'Aplicaciones', icon: <PendingActionsIcon />, color: 'success', path: '/aplicaciones', desc: 'Revisar nuevos candidatos' },
-                { label: 'Calidad QA', icon: <VerifiedUserIcon />, color: 'secondary', path: '/calidad', desc: 'Realizar auditorías de excelencia' },
-                { label: 'Reporte Asistencia', icon: <EventAvailableIcon />, color: 'info', path: '/reporte-asistencia', desc: 'Control de ingresos diarios' }
-              ].map((action) => (
-                <Button key={action.label} variant="outlined" fullWidth onClick={() => navigate(action.path)} sx={{ justifyContent: 'flex-start', p: 2, borderRadius: 3, border: '1px solid rgba(255,255,255,0.1)', backgroundColor: 'rgba(255,255,255,0.02)', '&:hover': { backgroundColor: 'rgba(255,255,255,0.05)', borderColor: 'primary.main', transform: 'scale(1.02)' }, transition: 'all 0.2s' }}>
-                  <Avatar sx={{ bgcolor: `${action.color}.main`, mr: 2, width: 40, height: 40 }}>{action.icon}</Avatar>
-                  <Box sx={{ textAlign: 'left' }}><Typography variant="body1" sx={{ fontWeight: 'bold', color: 'text.primary', lineHeight: 1 }}>{action.label}</Typography><Typography variant="caption" sx={{ color: 'text.secondary' }}>{action.desc}</Typography></Box>
-                </Button>
-              ))}
-            </Stack>
-          </Grid>
-          <Grid item xs={12} md={7}>
-            <Typography variant="h6" sx={{ fontWeight: 800, mb: 2, px: 1 }}>Mapa de Operaciones</Typography>
-            <Paper sx={{ borderRadius: 4, overflow: 'hidden', height: '400px', border: '1px solid rgba(255,255,255,0.05)', boxShadow: '0 10px 30px rgba(0,0,0,0.2)' }}>
-              <Box sx={{ height: '100%', width: '100%' }}>
-                <Suspense fallback={<Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100%' }}><CircularProgress /></Box>}>
-                  <LazyMapContainer center={mapCenter} zoom={6} style={{ height: '100%', width: '100%' }}>
-                    <LazyTileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
-                    {hotelsWithLocation.map((hotel) => (
-                      <LazyMarker key={hotel.id} position={[hotel.latitude!, hotel.longitude!]}>
-                        <LazyPopup><Box sx={{ p: 1 }}><Typography variant="subtitle2" sx={{ fontWeight: 'bold' }}>{hotel.name}</Typography><Typography variant="caption" color="text.secondary">{hotel.address}</Typography></Box></LazyPopup>
-                      </LazyMarker>
-                    ))}
-                  </LazyMapContainer>
-                </Suspense>
-              </Box>
-            </Paper>
-          </Grid>
-        </Grid>
-      </Box>
-    );
-  };
+      </Grid>
+    </Box>
+  );
 
   const renderAdminDashboard = () => (
     <Box sx={{ p: 2 }}>
+      <Box sx={{ mb: 3, p: 3, borderRadius: 3, background: 'linear-gradient(135deg, #0F172A 0%, #1E293B 100%)', color: 'white', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <Box>
+          <Typography variant="h5" sx={{ fontWeight: 'bold' }}>Carga Maestra de Datos</Typography>
+          <Typography variant="body2" sx={{ opacity: 0.8 }}>Inyectar información de hoteles y empleados desde el PDF procesado.</Typography>
+        </Box>
+        <Button 
+          variant="contained" 
+          color="primary" 
+          onClick={handleImportData} 
+          disabled={isImporting}
+          startIcon={isImporting ? <CircularProgress size={20} color="inherit" /> : <PendingActionsIcon />}
+          sx={{ borderRadius: 2, fontWeight: 'bold' }}
+        >
+          {isImporting ? 'Inyectando...' : 'Iniciar Carga Masiva'}
+        </Button>
+      </Box>
+
       <Typography variant="h4" gutterBottom sx={{ color: 'primary.main', fontWeight: 'bold' }}>Panel Administrativo</Typography>
       <Grid container spacing={3}>
         <Grid item xs={12} sm={6} md={3}><StatCard title="Hoteles" value={globalStats.totalHotels} icon={<ApartmentIcon />} onClick={() => navigate('/hoteles')} /></Grid>
@@ -256,11 +216,11 @@ function DashboardPage() {
         )}
       </Box>
       {isInspector && (
-        <Fab color="primary" aria-label="registrar visita" sx={{ position: 'fixed', bottom: 32, right: 32, background: 'linear-gradient(45deg, #FF5722 30%, #FF8A65 90%)', boxShadow: '0 4px 20px 0 rgba(255, 87, 34, 0.4)', transition: 'all 0.3s ease-in-out', '&:hover': { boxShadow: '0 6px 25px 0 rgba(255, 87, 34, 0.6)', transform: 'scale(1.1) rotate(5deg)' } }} onClick={handleCheckIn} disabled={isCheckingIn}>
-          {isCheckingIn ? <CircularProgress color="inherit" size={24} /> : <MyLocationIcon sx={{ fontSize: 28 }} />}
+        <Fab color="primary" sx={{ position: 'fixed', bottom: 32, right: 32 }} onClick={handleCheckIn} disabled={isCheckingIn}>
+          {isCheckingIn ? <CircularProgress color="inherit" size={24} /> : <MyLocationIcon />}
         </Fab>
       )}
-      <Snackbar open={snackbarInfo.open} autoHideDuration={6000} onClose={() => setSnackbarInfo({ ...snackbarInfo, open: false })}><Alert onClose={() => setSnackbarInfo({ ...snackbarInfo, open: false })} severity={snackbarInfo.severity} sx={{ width: '100%' }}>{snackbarInfo.message}</Alert></Snackbar>
+      <Snackbar open={snackbarInfo.open} autoHideDuration={6000} onClose={() => setSnackbarInfo({ ...snackbarInfo, open: false })}><Alert severity={snackbarInfo.severity}>{snackbarInfo.message}</Alert></Snackbar>
     </>
   );
 }

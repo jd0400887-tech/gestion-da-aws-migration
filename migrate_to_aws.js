@@ -8,7 +8,7 @@ const { Client } = pg;
 const config = {
   user: 'oranje_admin',
   password: 'OranjeApp2026!',
-  host: 'oranjeapp-db-v3.cbu0qiwu6p8s.us-east-1.rds.amazonaws.com',
+  host: 'oranjeapp-db-v3.clmhftlvtald.us-east-1.rds.amazonaws.com',
   database: 'oranjeapp_db',
   port: 5432,
   ssl: {
